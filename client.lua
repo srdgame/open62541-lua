@@ -65,20 +65,21 @@ print('addVariable', var, err)
 
 local var, err = objects:getChild({idx..":NewObject", "MyVariable"})
 print("getChild", var, err)
-print("Var user write mask", var.userWriteMask, "Var user accessl Level", var.userAccessLevel)
-print('Value of MyVariable', var.dataValue.value)
-print('Source Timestamp of MyVariable', var.dataValue.sourceTimestamp)
-print('Server Timestamp of MyVariable', var.dataValue.serverTimestamp)
+print("Var user write mask", var:getUserWriteMask(), "Var user accessl Level", var:getUserAccessLevel())
+local dv = var:getDataValue()
+print('Value of MyVariable', dv.value)
+print('Source Timestamp of MyVariable', dv.sourceTimestamp)
+print('Server Timestamp of MyVariable', dv.serverTimestamp)
 --var.dataValue = opcua.DataValue.new(opcua.Variant.new('ddddddddddddd'))
 local dv = opcua.DataValue.new(opcua.Variant.new('ddddddddddddd2'))
 dv.sourceTimestamp = opcua.DateTime.fromUnixTime(os.time())
-var.dataValue = dv
+var:setDataValue(dv)
 local var = objects:getChild({idx..":NewObject"})
 print('NewObject', var)
 print('MyVariable', var:getChild("MyVariable"))
 
 local prop = var:getChild("MyProperty")
-prop.value = opcua.Variant.new("i am a test")
+prop:setValue(opcua.Variant.new("i am a test"))
 
 --client:deleteNode(var, true)
 

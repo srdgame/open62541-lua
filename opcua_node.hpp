@@ -56,7 +56,8 @@ struct UA_Node_Finder : public UA_Node_callback {
 		return re; \
 	}
 
-#define SOL_MAP_NODE_PROPERTY(LN, DN) #LN, sol::property(&UA_Node::get##DN, &UA_Node::set##DN)
+//#define SOL_MAP_NODE_PROPERTY(LN, DN) #LN, sol::property(&UA_Node::get##DN, &UA_Node::set##DN)
+#define SOL_MAP_NODE_PROPERTY(LN, DN) "get"#DN, &UA_Node::get##DN, "set"#DN, &UA_Node::set##DN
 
 
 struct AutoReleaseNodeId {

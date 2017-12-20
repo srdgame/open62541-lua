@@ -72,7 +72,7 @@ print("Ctrl-C to exit")
 server:addCallback(function()
 	counter = counter + 1
 	local n = opcua.DateTime.now()
-	mytick.value = opcua.Variant.new(n)
+	mytick:setValue(opcua.Variant.new(n))
 	print('callback', mytick.value, n)
 end, 1000)
 
