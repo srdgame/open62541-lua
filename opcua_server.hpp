@@ -371,9 +371,11 @@ public:
 
 	static void Logger(UA_LogLevel level, UA_LogCategory category, const char *msg, va_list args) {
 		if (_logger) {
-			char buf[512] = {0};
+			char *buf = new char[2048];
+			memset(buf, 0, 2048);
 			vsprintf(buf, msg, args);
 			_logger(level, category, buf);
+			delete[] buf;
 		} else {
 			UA_Log_Stdout(level, category, msg, args);
 		}
