@@ -317,18 +317,18 @@ public:
 };
 
 
+void UA_LUA_Logger(UA_LogLevel level, UA_LogCategory category, const char *msg, va_list args);
 class UA_Client_Proxy {
 	UA_Client_Proxy(UA_Client_Proxy& prox);
 public:
 	UA_Client* _client;
-	static LogStdFunction _logger;
 	ClientNodeMgr* _mgr;
 	UA_Client_Proxy(UA_UInt32 timeout, UA_UInt32 secureChannelLifeTime, UA_ConnectionConfig connectionConfig) {
 		UA_ClientConfig config = {
 			timeout, // 5000
 			secureChannelLifeTime, //10 * 60 * 1000	
 			//UA_Log_Stdout,
-			&UA_Client_Proxy::Logger,
+			UA_LUA_Logger,
 			connectionConfig, /*
 								 {
 								 0,
@@ -348,18 +348,6 @@ public:
 	~UA_Client_Proxy() {
 		UA_Client_delete(_client);
 		delete _mgr;
-	}
-	static void Logger(UA_LogLevel level, UA_LogCategory category, const char *msg, va_list args) {
-		if (_logger) {
-			char buf[512] = {0};
-			vsprintf(buf, msg, args);
-			_logger(level, category, buf);
-		} else {
-			UA_Log_Stdout(level, category, msg, args);
-		}
-	}
-	void setLogger(LogStdFunction logger) {
-		_logger = logger;
 	}
 
 	UA_ClientState getState() {
@@ -461,7 +449,6 @@ void reg_opcua_client(sol::table& module) {
 
 	module.new_usertype<UA_Client_Proxy>("Client",
 		sol::constructors<UA_Client_Proxy(UA_UInt32, UA_UInt32, UA_ConnectionConfig)>(),
-		"setLogger", &UA_Client_Proxy::setLogger,
 		"getState", &UA_Client_Proxy::getState,
 		"reset", &UA_Client_Proxy::reset,
 		"connect", &UA_Client_Proxy::connect,

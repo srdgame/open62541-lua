@@ -1,4 +1,9 @@
 local opcua = require 'opcua'
+--[[
+opcua.setLogger(function(...)
+	print(...)
+end)
+]]--
 
 local config = opcua.ConnectionConfig.new()
 config.protocolVersion = 0
@@ -8,10 +13,6 @@ config.maxMessageSize = 0
 config.maxChunkCount = 0
 
 local client = opcua.Client.new(5000, 10 * 60 * 1000, config)
-client:setLogger(function(...)
-	print('------------------------')
-	print(...)
-end)
 --local r, err = client:connect_username("opc.tcp://127.0.0.1:4840", "user1", "password")
 local r, err = client:connect("opc.tcp://127.0.0.1:4840")
 print(r, err)
@@ -35,6 +36,9 @@ for _,v in ipairs(objects:getChildren()) do
 end
 
 local idx = client:getNamespaceIndex("http://iot.symid.com");
+if not idx then
+	idx = client:getNamespaceIndex("http://iot.symid.com/IDIDIDIDID")
+end
 print('getNamespaceIndex', idx)
 print('getNamespaceIndex2', client:getNamespaceIndex("http://iot.symid.com/aaa") )
 
@@ -64,22 +68,26 @@ local var, err = obj:addVariable(opcua.NodeId.new(idx, "new_variable_from_client
 print('addVariable', var, err)
 
 local var, err = objects:getChild({idx..":NewObject", "MyVariable"})
-print("getChild", var, err)
-print("Var user write mask", var:getUserWriteMask(), "Var user accessl Level", var:getUserAccessLevel())
-local dv = var:getDataValue()
-print('Value of MyVariable', dv.value)
-print('Source Timestamp of MyVariable', dv.sourceTimestamp)
-print('Server Timestamp of MyVariable', dv.serverTimestamp)
---var.dataValue = opcua.DataValue.new(opcua.Variant.new('ddddddddddddd'))
-local dv = opcua.DataValue.new(opcua.Variant.new('ddddddddddddd2'))
-dv.sourceTimestamp = opcua.DateTime.fromUnixTime(os.time())
-var:setDataValue(dv)
-local var = objects:getChild({idx..":NewObject"})
-print('NewObject', var)
-print('MyVariable', var:getChild("MyVariable"))
+if var then
+	print("getChild", var, err)
+	print("Var user write mask", var:getUserWriteMask(), "Var user accessl Level", var:getUserAccessLevel())
+	local dv = var:getDataValue()
+	print('Value of MyVariable', dv.value)
+	print('Source Timestamp of MyVariable', dv.sourceTimestamp)
+	print('Server Timestamp of MyVariable', dv.serverTimestamp)
+	--var.dataValue = opcua.DataValue.new(opcua.Variant.new('ddddddddddddd'))
+	local dv = opcua.DataValue.new(opcua.Variant.new('ddddddddddddd2'))
+	dv.sourceTimestamp = opcua.DateTime.fromUnixTime(os.time())
+	var:setDataValue(dv)
+	local var = objects:getChild({idx..":NewObject"})
+	print('NewObject', var)
+	print('MyVariable', var:getChild("MyVariable"))
 
-local prop = var:getChild("MyProperty")
-prop:setValue(opcua.Variant.new("i am a test"))
+	local prop = var:getChild("MyProperty")
+	prop:setValue(opcua.Variant.new("i am a test"))
+else
+	print("Newobject->MyVariable does not exits")
+end
 
 --client:deleteNode(var, true)
 

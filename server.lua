@@ -1,16 +1,15 @@
 local opcua = require 'opcua'
 
-local server = opcua.Server.new()
-local config = server.config
---server:SetEndpoint("opc.tcp://127.0.0.1:4840/freeopcua/server/")
-config:setServerURI("urn:://exampleserver.freeopcua.github.io")
-
 --[[
-server:setLogger(function(...)
+opcua.setLogger(function(...)
 	print(...)
 end)
 ]]--
 
+local server = opcua.Server.new()
+local config = server.config
+--server:SetEndpoint("opc.tcp://127.0.0.1:4840/freeopcua/server/")
+config:setServerURI("urn:://exampleserver.freeopcua.github.io")
 
 --print(pcall(server.GetNamespaceIndex, server, "http://examples.freeopcua.github.io"))
 --local idx = server:RegisterNamespace("http://examples.freeopcua.github.io")

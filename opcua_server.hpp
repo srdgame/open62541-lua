@@ -318,13 +318,13 @@ public:
 	}
 };
 
+void UA_LUA_Logger(UA_LogLevel level, UA_LogCategory category, const char *msg, va_list args);
 class UA_Server_Proxy {
 protected:
 	UA_Server_Proxy(UA_Server_Proxy& prox);
 	UA_Server* _server;
 	ServerNodeMgr* _mgr;
 	UA_ServerConfig *_config;
-	static LogStdFunction _logger;
 
 public:
 	volatile bool _running = true;
@@ -333,7 +333,7 @@ public:
 public:
 	UA_Server_Proxy() {
 		_config = UA_ServerConfig_new_default();
-		_config->logger = &UA_Server_Proxy::Logger;
+		_config->logger = UA_LUA_Logger;
 		_config_proxy = new UA_ServerConfig_Proxy(_config);
 
 		_server = UA_Server_new(_config);
@@ -341,7 +341,7 @@ public:
 	}
 	UA_Server_Proxy(int port) {
 		_config = UA_ServerConfig_new_minimal(port, NULL);
-		_config->logger = &UA_Server_Proxy::Logger;
+		_config->logger = UA_LUA_Logger;
 		_config_proxy = new UA_ServerConfig_Proxy(_config);
 
 		_server = UA_Server_new(_config);
@@ -351,7 +351,7 @@ public:
 		auto cert_s = UA_BYTESTRING_ALLOC(cert.c_str());
 		_config = UA_ServerConfig_new_minimal(port, &cert_s);
 		UA_ByteString_deleteMembers(&cert_s);
-		_config->logger = &UA_Server_Proxy::Logger;
+		_config->logger = UA_LUA_Logger;
 		_config_proxy = new UA_ServerConfig_Proxy(_config);
 
 		_server = UA_Server_new(_config);
@@ -367,21 +367,6 @@ public:
 			p->func = nullptr;
 			delete p;
 		}
-	}
-
-	static void Logger(UA_LogLevel level, UA_LogCategory category, const char *msg, va_list args) {
-		if (_logger) {
-			char *buf = new char[2048];
-			memset(buf, 0, 2048);
-			vsprintf(buf, msg, args);
-			_logger(level, category, buf);
-			delete[] buf;
-		} else {
-			UA_Log_Stdout(level, category, msg, args);
-		}
-	}
-	void setLogger(LogStdFunction logger) {
-		_logger = logger;
 	}
 
 	struct CallbackData {
@@ -543,7 +528,6 @@ void reg_opcua_server(sol::table& module) {
 		sol::constructors<UA_Server_Proxy(), UA_Server_Proxy(int), UA_Server_Proxy(int, const std::string&)>(),
 		"running", sol::readonly(&UA_Server_Proxy::_running),
 		"config", &UA_Server_Proxy::_config_proxy,
-		"setLogger", &UA_Server_Proxy::setLogger,
 		"addCallback", &UA_Server_Proxy::addCallback,
 		"run", &UA_Server_Proxy::run,
 		"startup", &UA_Server_Proxy::startup,

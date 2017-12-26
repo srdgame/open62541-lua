@@ -11,8 +11,6 @@
 
 namespace lua_opcua {
 
-typedef std::function<void (UA_LogLevel level, UA_LogCategory category, const char *msg)> LogStdFunction;
-
 std::string toString(const UA_Guid& guid) {
 	std::stringstream ss;
 	ss << std::hex << std::setw(8) <<std::setfill('0')  << guid.data1;
