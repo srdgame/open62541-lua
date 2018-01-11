@@ -138,7 +138,64 @@ void reg_opcua_types(sol::table& module) {
 		"setArrayCopy", [](UA_Variant& var, void* array, size_t arraySize, int type) { return UA_Variant_setArrayCopy(&var, array, arraySize, &UA_TYPES[type]); },
 		"copyRange", [](UA_Variant& var, const UA_Variant& src, const UA_NumericRange range) { return UA_Variant_copyRange(&src, &var, range); },
 		"setRange", [](UA_Variant& var, void* array, size_t arraySize, const UA_NumericRange range) { return UA_Variant_setRange(&var, array, arraySize, range); },
-		"setRangeCopy", [](UA_Variant& var, void* array, size_t arraySize, const UA_NumericRange range) { return UA_Variant_setRangeCopy(&var, array, arraySize, range); }
+		"setRangeCopy", [](UA_Variant& var, void* array, size_t arraySize, const UA_NumericRange range) { return UA_Variant_setRangeCopy(&var, array, arraySize, range); },
+		"asLong", [](UA_Variant& var) {
+			std::int64_t val = 0;
+			if (!UA_Variant_isScalar(&var))
+				return val;
+			if (var.type == &UA_TYPES[UA_TYPES_BOOLEAN])
+				val = *(UA_Boolean*)var.data ? 1 : 0;
+			else if (var.type == &UA_TYPES[UA_TYPES_SBYTE])
+				val = *(UA_SByte*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_BYTE])
+				val = *(UA_Byte*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_INT32])
+				val = *(UA_Int32*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_INT32])
+				val = *(UA_UInt32*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_INT64])
+				val = *(UA_Int64*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_UINT64])
+				val = *(UA_UInt64*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_FLOAT])
+				val = *(UA_Float*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_DOUBLE])
+				val = *(UA_Double*)var.data;
+			return val;
+		},
+		"asDouble", [](UA_Variant& var) {
+			double val = 0;
+			if (!UA_Variant_isScalar(&var))
+				return val;
+			if (var.type == &UA_TYPES[UA_TYPES_BOOLEAN])
+				val = *(UA_Boolean*)var.data ? 1 : 0;
+			else if (var.type == &UA_TYPES[UA_TYPES_SBYTE])
+				val = *(UA_SByte*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_BYTE])
+				val = *(UA_Byte*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_INT32])
+				val = *(UA_Int32*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_INT32])
+				val = *(UA_UInt32*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_INT64])
+				val = *(UA_Int64*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_UINT64])
+				val = *(UA_UInt64*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_FLOAT])
+				val = *(UA_Float*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_DOUBLE])
+				val = *(UA_Double*)var.data;
+			return val;
+		},
+		"asString", [](UA_Variant& var) {
+			if (!UA_Variant_isScalar(&var))
+				return std::string("Not Scalar Value");
+			if (var.type == &UA_TYPES[UA_TYPES_STRING]) {
+				UA_String str = *(UA_String*)var.data;
+				return std::string((const char*)str.data, str.length);
+			}
+			return std::string("Not String Type Value");
+		}
 	);
 
 	module.new_usertype<UA_DataValue>("DataValue",

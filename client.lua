@@ -14,12 +14,13 @@ config.maxChunkCount = 0
 
 local client = opcua.Client.new(5000, 10 * 60 * 1000, config)
 --local r, err = client:connect_username("opc.tcp://127.0.0.1:4840", "user1", "password")
-local r, err = client:connect("opc.tcp://127.0.0.1:4840")
+--local r, err = client:connect("opc.tcp://127.0.0.1:4840")
+local r, err = client:connect("opc.tcp://172.30.1.141:4840")
 print(r, err)
 
 local root = client:getRootNode()
 print("Root:", root, root.browse_name)
-
+print("Server:", client:getServerNode())
 
 --[[
 for _, v in ipairs(client:GetServerNamespaces()) do
@@ -28,12 +29,17 @@ end
 
 ]]--
 local objects = client:getObjectsNode()
+print(objects)
 for _,v in ipairs(objects:getChildren()) do
 	print(v, v.browse_name)
 	for _,v in ipairs(v:getChildren()) do
 		print(v, v.browse_name)
 	end
 end
+
+local id = opcua.NodeId.new(2, 99)
+local id = opcua.NodeId.new(2, 1)
+print( 'getNode', client:getNode(id))
 
 local idx = client:getNamespaceIndex("http://iot.symid.com");
 if not idx then
@@ -42,6 +48,7 @@ end
 print('getNamespaceIndex', idx)
 print('getNamespaceIndex2', client:getNamespaceIndex("http://iot.symid.com/aaa") )
 
+assert(idx)
 local id = opcua.NodeId.new(idx, "new_object_from_client")
 
 local attr = opcua.ObjectAttributes.new()
