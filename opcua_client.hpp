@@ -34,12 +34,6 @@ class ClientService {
 		CLINET_SERVICES_REQUEST(UnregisterNodes, unregisterNodes)
 		CLINET_SERVICES_REQUEST(QueryFirst, queryFirst)
 		CLINET_SERVICES_REQUEST(QueryNext, queryNext)
-		CLINET_SERVICES_REQUEST(CreateMonitoredItems, createMonitoredItems)
-		CLINET_SERVICES_REQUEST(DeleteMonitoredItems, deleteMonitoredItems)
-		CLINET_SERVICES_REQUEST(CreateSubscription, createSubscription)
-		CLINET_SERVICES_REQUEST(ModifySubscription, modifySubscription)
-		CLINET_SERVICES_REQUEST(DeleteSubscriptions, deleteSubscriptions)
-		CLINET_SERVICES_REQUEST(Publish, publish)
 };
 
 class ClientAttributeReader : public AttributeReader {
@@ -343,6 +337,33 @@ public:
 			NULL
 		};
 		_client = UA_Client_new(config);
+		_mgr = new ClientNodeMgr(_client);
+	}
+	UA_Client_Proxy(UA_UInt32 timeout, UA_UInt32 secureChannelLifeTime, UA_ConnectionConfig connectionConfig,
+			const char* certificate, const char* privateKey) {
+		UA_ClientConfig config = {
+			timeout, // 5000
+			secureChannelLifeTime, //10 * 60 * 1000	
+			//UA_Log_Stdout,
+			UA_LUA_Logger,
+			connectionConfig, /*
+								 {
+								 0,
+								 65535,
+								 65535,
+								 0,
+								 0,
+								 }
+								 */
+			UA_ClientConnectionTCP,
+			0,
+			NULL
+		};
+		UA_String cert = UA_STRING_ALLOC(certificate);
+		UA_String key = UA_STRING_ALLOC(privateKey);
+		_client = UA_Client_secure_new(config, cert, key, NULL, NULL, 0, NULL, 0);
+		UA_String_deleteMembers(&cert);
+		UA_String_deleteMembers(&key);
 		_mgr = new ClientNodeMgr(_client);
 	}
 	~UA_Client_Proxy() {
