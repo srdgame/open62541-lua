@@ -2,12 +2,14 @@
 #include <iostream>
 
 #include "open62541.h"
+#include "examples/common.h"
 
 #define SOL_CHECK_ARGUMENTS 1
 #include "sol/sol.hpp"
 
 #include "opcua_interfaces.hpp"
 #include "opcua_node.hpp"
+//#include "certificates.h"
 
 namespace lua_opcua {
 
@@ -310,6 +312,15 @@ public:
 	}
 };
 
+/* cleanupClient deletes the memory allocated for client configuration.
+ *
+ * @param  client             client configuration that need to be deleted
+ * @param  remoteCertificate  server certificate */
+static void cleanupClient(UA_Client* client, UA_ByteString* remoteCertificate) {
+    UA_ByteString_delete(remoteCertificate); /* Dereference the memory */
+    UA_Client_delete(client); /* Disconnects the client internally */
+}
+
 
 void UA_LUA_Logger(UA_LogLevel level, UA_LogCategory category, const char *msg, va_list args);
 class UA_Client_Proxy {
@@ -317,7 +328,8 @@ class UA_Client_Proxy {
 public:
 	UA_Client* _client;
 	ClientNodeMgr* _mgr;
-	UA_Client_Proxy(UA_UInt32 timeout, UA_UInt32 secureChannelLifeTime, UA_ConnectionConfig connectionConfig) {
+	std::string _endpoint_url;
+	UA_Client_Proxy(const char* endpointUrl, UA_UInt32 timeout, UA_UInt32 secureChannelLifeTime, UA_ConnectionConfig connectionConfig) {
 		UA_ClientConfig config = {
 			timeout, // 5000
 			secureChannelLifeTime, //10 * 60 * 1000	
@@ -336,11 +348,12 @@ public:
 			0,
 			NULL
 		};
+		_endpoint_url = std::string(endpointUrl);
 		_client = UA_Client_new(config);
 		_mgr = new ClientNodeMgr(_client);
 	}
-	UA_Client_Proxy(UA_UInt32 timeout, UA_UInt32 secureChannelLifeTime, UA_ConnectionConfig connectionConfig,
-			const char* certificate, const char* privateKey) {
+	UA_Client_Proxy(const char* endpointUrl, UA_UInt32 timeout, UA_UInt32 secureChannelLifeTime, UA_ConnectionConfig connectionConfig,
+			const char* securityPolicy, const char* certificate, const char* privateKey, const char* remoteCertificate) {
 		UA_ClientConfig config = {
 			timeout, // 5000
 			secureChannelLifeTime, //10 * 60 * 1000	
@@ -359,16 +372,176 @@ public:
 			0,
 			NULL
 		};
-		UA_String cert = UA_STRING_ALLOC(certificate);
-		UA_String key = UA_STRING_ALLOC(privateKey);
-		_client = UA_Client_secure_new(config, cert, key, NULL, NULL, 0, NULL, 0);
-		UA_String_deleteMembers(&cert);
-		UA_String_deleteMembers(&key);
+
+		_endpoint_url = std::string(endpointUrl);
+
+		if (securityPolicy && strlen(securityPolicy) > 0) {
+			if (remoteCertificate && strlen(remoteCertificate) > 0) {
+				_client = initSecureClient(securityPolicy, certificate, privateKey, remoteCertificate);
+			} else {
+				_client = initSecureClient(securityPolicy, certificate, privateKey);
+			}
+		} else {
+			_client = UA_Client_new(config);
+		}
+
+		if (!_client) {
+			printf("Initialized UA_Client failure!!!");
+			exit(-1);
+		}
+
 		_mgr = new ClientNodeMgr(_client);
 	}
 	~UA_Client_Proxy() {
 		UA_Client_delete(_client);
 		delete _mgr;
+	}
+
+	UA_Client* initSecureClient(const char* securityPolicy, const char* priCert, const char* priKey, const char* remoteCert) {
+		/* Load certificate and private key */
+		UA_ByteString           certificate        = loadFile(priCert);
+		UA_ByteString           privateKey         = loadFile(priKey);
+		UA_ByteString			remoteCertificate  = loadFile(remoteCert);
+
+		UA_Client*              client             = NULL;
+
+		UA_SecurityPolicy_Func sp_func = NULL;
+		if (strcmp(securityPolicy, "Basic128Rsa15") == 0) {
+			sp_func = UA_SecurityPolicy_Basic128Rsa15;
+		} else if(strcmp(securityPolicy, "Basic256Sha256") == 0) {
+			sp_func = UA_SecurityPolicy_Basic256Sha256;
+		} 
+
+		/* Secure client initialization */
+		client = UA_Client_secure_new(UA_ClientConfig_default,
+				certificate, privateKey,
+				&remoteCertificate,
+				NULL, 0,
+				NULL, 0,
+				sp_func);
+		
+		UA_ByteString_deleteMembers(&remoteCertificate);
+		UA_ByteString_deleteMembers(&certificate);
+		UA_ByteString_deleteMembers(&privateKey);
+
+		return client;	
+	}
+
+	UA_Client* initSecureClient(const char* securityPolicy, const char* priCert, const char* priKey) {
+		UA_Client*              client             = NULL;
+		UA_ByteString*          remoteCertificate  = NULL;
+		UA_StatusCode           retval             = UA_STATUSCODE_GOOD;
+		size_t                  trustListSize      = 0;
+		UA_ByteString*          revocationList     = NULL;
+		size_t                  revocationListSize = 0;
+
+		/* endpointArray is used to hold the available endpoints in the server
+		 * endpointArraySize is used to hold the number of endpoints available */
+		UA_EndpointDescription* endpointArray      = NULL;
+		size_t                  endpointArraySize  = 0;
+
+		UA_SecurityPolicy_Func sp_func = NULL;
+		if (strcmp(securityPolicy, "Basic128Rsa15") == 0) {
+			sp_func = UA_SecurityPolicy_Basic128Rsa15;
+		} else if(strcmp(securityPolicy, "Basic256Sha256") == 0) {
+			sp_func = UA_SecurityPolicy_Basic256Sha256;
+		} 
+
+		/* The Get endpoint (discovery service) is done with
+		 * security mode as none to see the server's capability
+		 * and certificate */
+		client = UA_Client_new(UA_ClientConfig_default);
+		remoteCertificate = UA_ByteString_new();
+		retval = UA_Client_getEndpoints(client, _endpoint_url.c_str(),
+				&endpointArraySize, &endpointArray);
+		if(retval != UA_STATUSCODE_GOOD) {
+			UA_Array_delete(endpointArray, endpointArraySize,
+					&UA_TYPES[UA_TYPES_ENDPOINTDESCRIPTION]);
+			cleanupClient(client, remoteCertificate);
+			//return (int)retval;
+			return NULL;
+		}
+
+		char* temp = new char[256];
+		sprintf(temp, "http://opcfoundation.org/UA/SecurityPolicy#%s", securityPolicy);
+		UA_String securityPolicyUri = UA_STRING(temp);
+
+		printf("%i endpoints found\n", (int)endpointArraySize);
+		for(size_t endPointCount = 0; endPointCount < endpointArraySize; endPointCount++) {
+			printf("URL of endpoint %i is %.*s / %.*s\n", (int)endPointCount,
+					(int)endpointArray[endPointCount].endpointUrl.length,
+					endpointArray[endPointCount].endpointUrl.data,
+					(int)endpointArray[endPointCount].securityPolicyUri.length,
+					endpointArray[endPointCount].securityPolicyUri.data);
+			printf("securityMode %d - %d\n", endpointArray[endPointCount].securityMode, UA_MESSAGESECURITYMODE_SIGNANDENCRYPT);
+
+			if(endpointArray[endPointCount].securityMode != UA_MESSAGESECURITYMODE_SIGNANDENCRYPT)
+				continue;
+
+			if(UA_String_equal(&endpointArray[endPointCount].securityPolicyUri, &securityPolicyUri)) {
+				UA_ByteString_copy(&endpointArray[endPointCount].serverCertificate, remoteCertificate);
+				break;
+			}
+		}
+		delete[] temp;
+
+		if(UA_ByteString_equal(remoteCertificate, &UA_BYTESTRING_NULL)) {
+			UA_LOG_FATAL(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND,
+					"Server does not support Security %s Mode of"
+					" UA_MESSAGESECURITYMODE_SIGNANDENCRYPT", securityPolicy);
+			cleanupClient(client, remoteCertificate);
+			return NULL;
+		}
+
+		UA_Array_delete(endpointArray, endpointArraySize,
+				&UA_TYPES[UA_TYPES_ENDPOINTDESCRIPTION]);
+
+		UA_Client_delete(client); /* Disconnects the client internally */
+
+		/* Load the trustList. Load revocationList is not supported now */
+		/*
+		if(argc > MIN_ARGS)
+			trustListSize = (size_t)argc-MIN_ARGS;
+
+		UA_STACKARRAY(UA_ByteString, trustList, trustListSize);
+		for(size_t trustListCount = 0; trustListCount < trustListSize; trustListCount++) {
+			trustList[trustListCount] = loadFile(argv[trustListCount+3]);
+		}
+		*/
+		UA_ByteString trustList[1];
+
+		/* Load certificate and private key */
+		UA_ByteString           certificate        = loadFile(priCert);
+		UA_ByteString           privateKey         = loadFile(priKey);
+		/*
+		UA_ByteString certificate;
+		certificate.length = CERT_DER_LENGTH;
+		certificate.data = CERT_DER_DATA;
+
+		UA_ByteString privateKey;
+		privateKey.length = KEY_DER_LENGTH;
+		privateKey.data = KEY_DER_DATA;
+		*/
+
+		/* Secure client initialization */
+		client = UA_Client_secure_new(UA_ClientConfig_default,
+				certificate, privateKey,
+				remoteCertificate,
+				trustList, trustListSize,
+				revocationList, revocationListSize,
+				sp_func);
+		if(client == NULL) {
+			UA_ByteString_delete(remoteCertificate); /* Dereference the memory */
+		}
+
+		UA_ByteString_deleteMembers(&certificate);
+		UA_ByteString_deleteMembers(&privateKey);
+		for(size_t deleteCount = 0; deleteCount < trustListSize; deleteCount++) {
+			UA_ByteString_deleteMembers(&trustList[deleteCount]);
+		}
+
+
+		return client;
 	}
 
 	UA_ClientState getState() {
@@ -377,11 +550,11 @@ public:
 	void reset() {
 		UA_Client_reset(_client);
 	}
-	UA_StatusCode connect(const char* endpointUrl) {
-		return UA_Client_connect(_client, endpointUrl);
+	UA_StatusCode connect() {
+		return UA_Client_connect(_client, _endpoint_url.c_str());
 	}
-	UA_StatusCode connect_username(const char* endpointUrl, const char* username, const char* password) {
-		return UA_Client_connect_username(_client, endpointUrl, username, password);
+	UA_StatusCode connect_username(const char* username, const char* password) {
+		return UA_Client_connect_username(_client, _endpoint_url.c_str(), username, password);
 	}
 	UA_StatusCode disconnect() {
 		return UA_Client_disconnect(_client);
@@ -469,7 +642,8 @@ void reg_opcua_client(sol::table& module) {
 	);
 
 	module.new_usertype<UA_Client_Proxy>("Client",
-		sol::constructors<UA_Client_Proxy(UA_UInt32, UA_UInt32, UA_ConnectionConfig)>(),
+		//sol::constructors<UA_Client_Proxy(UA_UInt32, UA_UInt32, UA_ConnectionConfig)>(),
+		sol::constructors<UA_Client_Proxy(const char*, UA_UInt32, UA_UInt32, UA_ConnectionConfig), UA_Client_Proxy(const char*, UA_UInt32, UA_UInt32, UA_ConnectionConfig, const char*, const char*, const char*, const char*)>(),
 		"getState", &UA_Client_Proxy::getState,
 		"reset", &UA_Client_Proxy::reset,
 		"connect", &UA_Client_Proxy::connect,

@@ -39,6 +39,41 @@ std::string toString(const UA_NodeId& id) {
 	return ss.str();
 }
 
+static void
+printNumber(unsigned short n, unsigned char *pos, size_t digits) {
+    for(size_t i = digits; i > 0; --i) {
+        pos[i-1] = (unsigned char)((n % 10) + '0');
+        n = n / 10;
+    }
+}
+
+UA_String
+UA_DateTime_toString(UA_DateTime t) {
+    /* length of the string is 31 (plus \0 at the end) */
+    UA_String str = {31, (unsigned char*)UA_malloc(32)};
+    if(!str.data)
+        return UA_STRING_NULL;
+    UA_DateTimeStruct tSt = UA_DateTime_toStruct(t);
+    printNumber(tSt.month, str.data, 2);
+    str.data[2] = '/';
+    printNumber(tSt.day, &str.data[3], 2);
+    str.data[5] = '/';
+    printNumber(tSt.year, &str.data[6], 4);
+    str.data[10] = ' ';
+    printNumber(tSt.hour, &str.data[11], 2);
+    str.data[13] = ':';
+    printNumber(tSt.min, &str.data[14], 2);
+    str.data[16] = ':';
+    printNumber(tSt.sec, &str.data[17], 2);
+    str.data[19] = '.';
+    printNumber(tSt.milliSec, &str.data[20], 3);
+    str.data[23] = '.';
+    printNumber(tSt.microSec, &str.data[24], 3);
+    str.data[27] = '.';
+    printNumber(tSt.nanoSec, &str.data[28], 3);
+    return str;
+}
+
 void reg_opcua_types(sol::table& module) {
 	module.new_usertype<UA_DateTime>("DateTime",
 		//"new", sol::factories([](void) { UA_DateTime date; return UA_DateTime_init(&date); }),
@@ -270,12 +305,30 @@ void reg_opcua_types(sol::table& module) {
 	module.new_usertype<UA_QualifiedName>("QualifiedName",
 		"new", sol::factories([](int ns, const char* val) { return UA_QUALIFIEDNAME_ALLOC(ns, val); }),
 		"__gc", sol::destructor(UA_QualifiedName_deleteMembers),
-		"__eq", [](const UA_QualifiedName& left, const UA_QualifiedName& right) { return left.namespaceIndex == right.namespaceIndex & UA_String_equal(&left.name, &right.name); }
+		"__eq", [](const UA_QualifiedName& left, const UA_QualifiedName& right) {
+			return left.namespaceIndex == right.namespaceIndex & UA_String_equal(&left.name, &right.name);
+		},
+		"__tostring", [](const UA_QualifiedName& obj) { 
+			std::stringstream ss;
+			ss << "QualifiedName(namespaceIndex=" << obj.namespaceIndex;
+			ss << ";name=" << std::string((char*)obj.name.data, obj.name.length) << ")";
+			return ss.str();
+		},
+		"name", sol::property([](const UA_QualifiedName& obj) { return std::string((char*)obj.name.data, obj.name.length); }),
+		"namespaceIndex", sol::property([](const UA_QualifiedName& obj) { return obj.namespaceIndex; })
 	);
 
 	module.new_usertype<UA_LocalizedText>("LocalizedText",
 		"new", sol::factories([](const char* locale, const char* text) { return UA_LOCALIZEDTEXT_ALLOC(locale, text); }),
-		"__gc", sol::destructor(UA_LocalizedText_deleteMembers)
+		"__gc", sol::destructor(UA_LocalizedText_deleteMembers),
+		"__tostring", [](const UA_LocalizedText& obj) {
+			std::stringstream ss;
+			ss << "LocalizedText(locale=" << std::string((char*)obj.locale.data, obj.locale.length);
+			ss << ";text=" << std::string((char*)obj.text.data, obj.text.length) << ")";
+			return ss.str();
+		},
+		"text", sol::property([](const UA_LocalizedText& obj) { return std::string((char*)obj.text.data, obj.text.length); }),
+		"locale", sol::property([](const UA_LocalizedText& obj) { return std::string((char*)obj.locale.data, obj.locale.length); })
 	);
 
 	module.new_usertype<UA_ObjectAttributes>("ObjectAttributes",

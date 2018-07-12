@@ -42,6 +42,7 @@ namespace lua_opcua {
 
 		//module.set_function("setLogger", [&](sol::function logger) { g_ua_logger = logger; });
 		module.set_function("setLogger", setLogger);
+		module.set_function("getStatusCodeName", UA_StatusCode_name);
 
 		return module;
 	}
