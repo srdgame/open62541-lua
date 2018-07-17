@@ -108,32 +108,10 @@ void reg_opcua_types(sol::table& module) {
 				UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_BOOLEAN]);
 				return var;
 			},
-			[](std::uint64_t val) {
-				//std::cout << "uint64_t" << std::endl;
-				UA_Variant var;
-				UA_Variant_init(&var);
-				UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_UINT64]);
-				return var;
-			},
-			[](std::int64_t val) {
-				//std::cout << "int64_t" << std::endl;
+			[](int64_t val) {
 				UA_Variant var;
 				UA_Variant_init(&var);
 				UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_INT64]);
-				return var;
-			},
-			[](std::uint32_t val, bool v32) {
-				//std::cout << "uint32_t" << std::endl;
-				UA_Variant var;
-				UA_Variant_init(&var);
-				UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_UINT32]);
-				return var;
-			},
-			[](std::int32_t val, bool v32) {
-				//std::cout << "int32_t" << std::endl;
-				UA_Variant var;
-				UA_Variant_init(&var);
-				UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_INT32]);
 				return var;
 			},
 			[](double val) {
@@ -150,6 +128,13 @@ void reg_opcua_types(sol::table& module) {
 				UA_String_deleteMembers(&str);
 				return var;
 			},
+			[](const UA_DateTime& val) {
+				std::cout << "UA_DateTime" << std::endl;
+				UA_Variant var;
+				UA_Variant_init(&var);
+				UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_DATETIME]);
+				return var;
+			},
 			[](const UA_Variant& obj) {
 				UA_Variant var;
 				UA_Variant_init(&var);
@@ -162,6 +147,15 @@ void reg_opcua_types(sol::table& module) {
 				return var;
 			}
 		),
+		"int8", sol::initializers([](UA_Variant& var, int8_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_SBYTE]); }),
+		"uint8", sol::initializers([](UA_Variant& var, uint8_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_BYTE]);}),
+		"int16", sol::initializers([](UA_Variant& var, int16_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_INT16]); }),
+		"uint16", sol::initializers([](UA_Variant& var, uint16_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_UINT16]);}),
+		"int32", sol::initializers([](UA_Variant& var, int32_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_INT32]); }),
+		"uint32", sol::initializers([](UA_Variant& var, uint32_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_UINT32]);}),
+		"int64", sol::initializers([](UA_Variant& var, int64_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_INT64]);}),
+		"uint64", sol::initializers([](UA_Variant& var, uint64_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_UINT64]);}),
+
 		"__gc", sol::destructor(UA_Variant_deleteMembers),
 		"isEmpty", [](UA_Variant& var) { return UA_Variant_isEmpty(&var); },
 		"isScalar", [](UA_Variant& var) { return UA_Variant_isScalar(&var); },

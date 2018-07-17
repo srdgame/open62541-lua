@@ -9,13 +9,13 @@ project "opcua"
 	targetprefix ""
 	targetdir "bin/%{cfg.buildcfg}"
 
-	includedirs { "/usr/include/lua5.3", ".", "../../" }
+	includedirs { "/usr/include/lua5.3", ".", "../../build/" }
 	files { "**.hpp", "**.cpp"}
 
 	-- buildoptions { '-Wno-unknown-warning', '-Wno-unknown-warning-option', '-Wall', '-Wextra', '-Wpedantic', '-pedantic', '-pedantic-errors', '-Wno-noexcept-type', '-std=c++14', '-ftemplate-depth=1024' }
-	buildoptions { '-Wpedantic', '-pedantic', '-pedantic-errors', '-Wno-noexcept-type', '-std=c++14', '-ftemplate-depth=2048' }
+	buildoptions { '-Wpedantic', '-pedantic', '-pedantic-errors', '-Wno-noexcept-type', '-std=c++14', '-ftemplate-depth=2048', '-DUA_ARCHITECTURE_POSIX'}
 
-	libdirs { "../../bin" }
+	libdirs { "../../build/bin" }
 	links { "pthread", "open62541" }
 	linkoptions { "-Wl,--whole-archive -lmbedtls -lmbedx509 -lmbedcrypto -Wl,--no-whole-archive" }
 

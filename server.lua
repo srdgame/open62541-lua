@@ -30,7 +30,7 @@ print(newobject, pcall(objects.addObject, objects, nid, "NewObject", attr))
 local attr = opcua.VariableAttributes.new()
 attr.displayName = opcua.LocalizedText.new("en_US", "My Variable DisplayName")
 attr.description = opcua.LocalizedText.new("en_US", "My Variable Description")
-attr.value = opcua.Variant.new(8, true)
+attr.value = opcua.Variant.int32(8)
 --[[
 attr.writeMask = opcua.WriteMask.ALL
 attr.userWriteMask = opcua.WriteMask.ALL

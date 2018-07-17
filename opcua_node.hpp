@@ -302,7 +302,7 @@ UA_StatusCode UA_Node_Iter::operator()(UA_NodeId childId, UA_Boolean isInverse, 
 	if (isInverse)
 		return UA_STATUSCODE_GOOD;
 
-	std::cout << "UA_Node_Iter\t" << toString(childId) << "\t" << toString(referenceTypeId) << std::endl;
+	//std::cout << "UA_Node_Iter\t" << toString(childId) << "\t" << toString(referenceTypeId) << std::endl;
 	UA_Node node(_parent->_mgr, childId, referenceTypeId, UA_NODECLASS_UNSPECIFIED);
 	_childs.push_back(node);
 	return UA_STATUSCODE_GOOD;

@@ -34,8 +34,8 @@ class ClientService {
 		CLINET_SERVICES_REQUEST(TranslateBrowsePathsToNodeIds, translateBrowsePathsToNodeIds)
 		CLINET_SERVICES_REQUEST(RegisterNodes, registerNodes)
 		CLINET_SERVICES_REQUEST(UnregisterNodes, unregisterNodes)
-		CLINET_SERVICES_REQUEST(QueryFirst, queryFirst)
-		CLINET_SERVICES_REQUEST(QueryNext, queryNext)
+		//CLINET_SERVICES_REQUEST(QueryFirst, queryFirst)
+		//CLINET_SERVICES_REQUEST(QueryNext, queryNext)
 };
 
 class ClientAttributeReader : public AttributeReader {
