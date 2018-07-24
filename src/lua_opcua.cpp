@@ -3,13 +3,14 @@
 #define SOL_CHECK_ARGUMENTS 1
 #include "sol/sol.hpp"
 
-#include "opcua_enums.hpp"
-#include "opcua_types.hpp"
-#include "opcua_node.hpp"
-#include "opcua_client.hpp"
-#include "opcua_server.hpp"
 
 namespace lua_opcua {
+	void reg_opcua_enums(sol::table& module);
+	void reg_opcua_types(sol::table& module);
+	void reg_opcua_node(sol::table& module);
+	void reg_opcua_client(sol::table& module);
+	void reg_opcua_server(sol::table& module);
+
 	typedef std::function<void (UA_LogLevel level, UA_LogCategory category, const char *msg)> LogStdFunction;
 	LogStdFunction g_ua_logger = nullptr;
 	/*

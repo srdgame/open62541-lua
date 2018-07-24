@@ -1,4 +1,3 @@
-#pragma once
 #include <iostream>
 
 #include "open62541.h"
@@ -8,7 +7,7 @@
 #include "sol/sol.hpp"
 
 #include "opcua_interfaces.hpp"
-#include "opcua_node.hpp"
+#include "module_node.hpp"
 //#include "certificates.h"
 
 namespace lua_opcua {

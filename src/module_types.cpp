@@ -1,4 +1,3 @@
-#pragma once
 #include <iomanip>
 //#include <iostream>
 
@@ -11,32 +10,12 @@
 
 namespace lua_opcua {
 
-std::string toString(const UA_Guid& guid) {
-	std::stringstream ss;
-	ss << std::hex << std::setw(8) <<std::setfill('0')  << guid.data1;
-	ss << std::hex << std::setw(4) <<std::setfill('0')  << guid.data2;
-	ss << std::hex << std::setw(4) <<std::setfill('0')  << guid.data4;
-	return ss.str();
-}
 std::string toString(const UA_NodeId& id) {
-	std::stringstream ss;
-	ss << "NodeId(ns=" << id.namespaceIndex << ";i=";
-	switch(id.identifierType) {
-		case UA_NODEIDTYPE_GUID:
-			ss << toString(id.identifier.guid);
-			break;
-		case UA_NODEIDTYPE_STRING:
-			ss << std::string((char*)id.identifier.string.data, id.identifier.string.length);
-			break;
-		case UA_NODEIDTYPE_BYTESTRING:
-			ss << std::string((char*)id.identifier.byteString.data, id.identifier.byteString.length);
-			break;
-		case UA_NODEIDTYPE_NUMERIC:
-		default:
-			ss << id.identifier.numeric;
-			break;
-	}
-	return ss.str();
+	UA_String nodeIdStr = UA_STRING_NULL;
+	UA_NodeId_toString(&id, &nodeIdStr);
+	std::string str = std::string((const char*)nodeIdStr.data, nodeIdStr.length);
+	UA_String_deleteMembers(&nodeIdStr);
+	return str;
 }
 
 static void
@@ -89,6 +68,10 @@ void reg_opcua_types(sol::table& module) {
 		"localTimeUtcOffset", sol::property([](void) { return UA_DateTime_localTimeUtcOffset(); })
 	);
 	module.new_usertype<UA_DateTimeStruct>("DateTimeStruct",
+		"new", sol::factories(
+			[](void) { return UA_DateTimeStruct(); },
+			[](const UA_DateTime& dt) { return UA_DateTime_toStruct(dt); }
+		),
 		"nanoSec", &UA_DateTimeStruct::nanoSec,
 		"microSec", &UA_DateTimeStruct::microSec,
 		"milliSec", &UA_DateTimeStruct::milliSec,
@@ -99,6 +82,11 @@ void reg_opcua_types(sol::table& module) {
 		"month", &UA_DateTimeStruct::month,
 		"year", &UA_DateTimeStruct::year
 	);
+
+	/*
+	module.new_usertype<UA_NumericRange>("NumericRange",
+	);
+	*/
 
 	module.new_usertype<UA_Variant>("Variant",
 		"new", sol::factories(
@@ -128,13 +116,6 @@ void reg_opcua_types(sol::table& module) {
 				UA_String_deleteMembers(&str);
 				return var;
 			},
-			[](const UA_DateTime& val) {
-				std::cout << "UA_DateTime" << std::endl;
-				UA_Variant var;
-				UA_Variant_init(&var);
-				UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_DATETIME]);
-				return var;
-			},
 			[](const UA_Variant& obj) {
 				UA_Variant var;
 				UA_Variant_init(&var);
@@ -155,6 +136,7 @@ void reg_opcua_types(sol::table& module) {
 		"uint32", sol::initializers([](UA_Variant& var, uint32_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_UINT32]);}),
 		"int64", sol::initializers([](UA_Variant& var, int64_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_INT64]);}),
 		"uint64", sol::initializers([](UA_Variant& var, uint64_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_UINT64]);}),
+		"datetime", sol::initializers([](UA_Variant& var, UA_DateTime val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_DATETIME]);}),
 
 		"__gc", sol::destructor(UA_Variant_deleteMembers),
 		"isEmpty", [](UA_Variant& var) { return UA_Variant_isEmpty(&var); },
@@ -296,11 +278,29 @@ void reg_opcua_types(sol::table& module) {
 			return result;
 		})
 	);
+	module.new_usertype<UA_ExpandedNodeId>("ExpandedNodeId",
+		"new", sol::factories(
+			[](int ns, int val) { return UA_EXPANDEDNODEID_NUMERIC(ns, val); },
+			[](int ns, const char* val) { return UA_EXPANDEDNODEID_STRING_ALLOC(ns, val); }
+		),
+		// TODO: for UUID, BYTESTRING
+		"__gc", sol::destructor(UA_ExpandedNodeId_deleteMembers),
+		"__eq", [](const UA_ExpandedNodeId& left, const UA_ExpandedNodeId& right) {
+			return UA_ExpandedNodeId_equal(&left, &right);
+		},
+		"nodeId", &UA_ExpandedNodeId::nodeId,
+		"namespaceUri", sol::property([](const UA_ExpandedNodeId& obj) {
+			return std::string((char*)obj.namespaceUri.data, obj.namespaceUri.length); }
+		),
+		"serverIndex", &UA_ExpandedNodeId::serverIndex
+	);
+
 	module.new_usertype<UA_QualifiedName>("QualifiedName",
 		"new", sol::factories([](int ns, const char* val) { return UA_QUALIFIEDNAME_ALLOC(ns, val); }),
 		"__gc", sol::destructor(UA_QualifiedName_deleteMembers),
 		"__eq", [](const UA_QualifiedName& left, const UA_QualifiedName& right) {
-			return left.namespaceIndex == right.namespaceIndex & UA_String_equal(&left.name, &right.name);
+			return UA_QualifiedName_equal(&left, &right);
+			//return left.namespaceIndex == right.namespaceIndex & UA_String_equal(&left.name, &right.name);
 		},
 		"__tostring", [](const UA_QualifiedName& obj) { 
 			std::stringstream ss;
