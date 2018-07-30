@@ -51,10 +51,11 @@ UA_StatusCode UA_Node_IteratorCallback(UA_NodeId childId, UA_Boolean isInverse, 
 
 void reg_opcua_node(sol::table& module) {
 	module.new_usertype<UA_Node>("Node",
-		//"new", sol::no_constructor,
+		"new", sol::no_constructor,
 		"id", sol::readonly(&UA_Node::_id),
 		"__tostring", [](const UA_Node& node) { return (std::string)node; },
-		"nodeClass", sol::readonly(&UA_Node::_class),
+		"node_class", sol::readonly(&UA_Node::_class),
+		"reference_type", sol::readonly(&UA_Node::_referenceType),
 		"nodeMgr", sol::readonly(&UA_Node::_mgr),
 		"deleteNode", &UA_Node::deleteNode,
 		"addFolder", &UA_Node::addFolder,
@@ -82,7 +83,7 @@ void reg_opcua_node(sol::table& module) {
 		SOL_MAP_NODE_PROPERTY(value, Value),
 		SOL_MAP_NODE_PROPERTY(dataValue, DataValue),
 		SOL_MAP_NODE_PROPERTY(dataType, DataType),
-		SOL_MAP_NODE_PROPERTY(valueTank, ValueRank),
+		SOL_MAP_NODE_PROPERTY(valueRank, ValueRank),
 		// ArrayDimensions TODO:
 		SOL_MAP_NODE_PROPERTY(accessLevel, AccessLevel),
 		SOL_MAP_NODE_PROPERTY(userAccessLevel, UserAccessLevel),

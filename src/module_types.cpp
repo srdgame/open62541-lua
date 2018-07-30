@@ -58,13 +58,13 @@ void reg_opcua_types(sol::table& module) {
 		//"new", sol::factories([](void) { UA_DateTime date; return UA_DateTime_init(&date); }),
 		//"__gc", sol::destructor(UA_DateTime_deleteMembers),
 		"new", sol::no_constructor,
+		"now", sol::initializers([]() { return UA_DateTime_now(); }),
+		"nowMonotonic", sol::initializers([](void){ return UA_DateTime_nowMonotonic(); }),
 		"__tostring", [](const UA_DateTime& date) { return UA_DateTime_toString(date); },
 		//"__tostring", [](const UA_DateTime& date) { std::stringstream ss; ss << date; return ss.str(); },
 		"toUnixTime", [](const UA_DateTime& date) { return UA_DateTime_toUnixTime(date); },
 		"fromUnixTime", [](UA_Int64 unixDate) { return UA_DateTime_fromUnixTime(unixDate); },
 		"toStruct", [](const UA_DateTime& date) { return UA_DateTime_toStruct(date); },
-		"now", [](void){ return UA_DateTime_now(); },
-		"nowMonotonic", [](void){ return UA_DateTime_nowMonotonic(); },
 		"localTimeUtcOffset", sol::property([](void) { return UA_DateTime_localTimeUtcOffset(); })
 	);
 	module.new_usertype<UA_DateTimeStruct>("DateTimeStruct",
@@ -150,7 +150,7 @@ void reg_opcua_types(sol::table& module) {
 		"copyRange", [](UA_Variant& var, const UA_Variant& src, const UA_NumericRange range) { return UA_Variant_copyRange(&src, &var, range); },
 		"setRange", [](UA_Variant& var, void* array, size_t arraySize, const UA_NumericRange range) { return UA_Variant_setRange(&var, array, arraySize, range); },
 		"setRangeCopy", [](UA_Variant& var, void* array, size_t arraySize, const UA_NumericRange range) { return UA_Variant_setRangeCopy(&var, array, arraySize, range); },
-		"asLong", [](UA_Variant& var) {
+		"asLong", [](const UA_Variant& var) {
 			std::int64_t val = 0;
 			if (!UA_Variant_isScalar(&var))
 				return val;
@@ -174,7 +174,7 @@ void reg_opcua_types(sol::table& module) {
 				val = *(UA_Double*)var.data;
 			return val;
 		},
-		"asDouble", [](UA_Variant& var) {
+		"asDouble", [](const UA_Variant& var) {
 			double val = 0;
 			if (!UA_Variant_isScalar(&var))
 				return val;
@@ -198,7 +198,7 @@ void reg_opcua_types(sol::table& module) {
 				val = *(UA_Double*)var.data;
 			return val;
 		},
-		"asString", [](UA_Variant& var) {
+		"asString", [](const UA_Variant& var) {
 			if (!UA_Variant_isScalar(&var))
 				return std::string("Not Scalar Value");
 			if (var.type == &UA_TYPES[UA_TYPES_STRING]) {
@@ -206,6 +206,13 @@ void reg_opcua_types(sol::table& module) {
 				return std::string((const char*)str.data, str.length);
 			}
 			return std::string("Not String Type Value");
+		},
+		"asDateTime", [](const UA_Variant& var) {
+			UA_DateTime dt = 0L;
+			if (var.type == &UA_TYPES[UA_TYPES_DATETIME] ) {
+				dt = *(UA_DateTime*)var.data;
+			}
+			return dt;
 		}
 	);
 

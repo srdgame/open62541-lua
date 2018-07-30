@@ -1,0 +1,4 @@
+mkdir build_openwrt
+. ~/toolchain/imx6_export.sh
+cmake -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/Toolchain-arm-openwrt-linux-gcc.cmake ..
+make

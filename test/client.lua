@@ -20,8 +20,8 @@ local r, err = client:connect_username("user1", "password")
 print(r, err)
 
 local root = client:getRootNode()
-print("Root:", root, root:getBrowseName())
-print("Server:", client:getServerNode())
+print("Root:", root, root.browseName)
+print("Server:", client.serverNode)
 
 --[[
 for _, v in ipairs(client:GetServerNamespaces()) do
@@ -32,9 +32,9 @@ end
 local objects = client:getObjectsNode()
 print(objects)
 for _,v in ipairs(objects:getChildren()) do
-	print(v, v:getBrowseName(), v.nodeClass)
+	print(v, v.browseName, v.nodeClass, v.node_class)
 	for _,v in ipairs(v:getChildren()) do
-		print(v, v:getBrowseName())
+		print(v, v.browseName, v.nodeClass, v.node_class)
 	end
 end
 
@@ -82,21 +82,21 @@ print('addVariable', var, err)
 local var, err = objects:getChild({idx..":NewObject", "MyVariable"})
 if var then
 	print("getChild", var, err)
-	print("Var user write mask", var:getUserWriteMask(), "Var user accessl Level", var:getUserAccessLevel())
-	local dv = var:getDataValue()
+	print("Var user write mask", var.userWriteMask, "Var user accessl Level", var.userAccessLevel)
+	local dv = var.dataValue
 	print('Value of MyVariable', dv.value)
 	print('Source Timestamp of MyVariable', dv.sourceTimestamp)
 	print('Server Timestamp of MyVariable', dv.serverTimestamp)
 	--var.dataValue = opcua.DataValue.new(opcua.Variant.new('ddddddddddddd'))
 	local dv = opcua.DataValue.new(opcua.Variant.new('ddddddddddddd2'))
 	dv.sourceTimestamp = opcua.DateTime.fromUnixTime(os.time())
-	var:setDataValue(dv)
+	var.dataValue = dv
 	local var = objects:getChild({idx..":NewObject"})
 	print('NewObject', var)
 	print('MyVariable', var:getChild("MyVariable"))
 
 	local prop = var:getChild("MyProperty")
-	prop:setValue(opcua.Variant.new("i am a test"))
+	prop.value = opcua.Variant.new("i am a test")
 else
 	print("Newobject->MyVariable does not exits")
 end
