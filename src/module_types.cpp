@@ -55,13 +55,10 @@ UA_DateTime_toString(UA_DateTime t) {
 
 void reg_opcua_types(sol::table& module) {
 	module.new_usertype<UA_DateTime>("DateTime",
-		//"new", sol::factories([](void) { UA_DateTime date; return UA_DateTime_init(&date); }),
-		//"__gc", sol::destructor(UA_DateTime_deleteMembers),
-		"new", sol::no_constructor,
-		"now", sol::initializers([]() { return UA_DateTime_now(); }),
-		"nowMonotonic", sol::initializers([](void){ return UA_DateTime_nowMonotonic(); }),
+		"new", sol::factories([](void) { return UA_DateTime_now(); }),
+		"now", [](void) { return UA_DateTime_now(); },
+		"nowMonotonic", [](void){ return UA_DateTime_nowMonotonic(); },
 		"__tostring", [](const UA_DateTime& date) { return UA_DateTime_toString(date); },
-		//"__tostring", [](const UA_DateTime& date) { std::stringstream ss; ss << date; return ss.str(); },
 		"toUnixTime", [](const UA_DateTime& date) { return UA_DateTime_toUnixTime(date); },
 		"fromUnixTime", [](UA_Int64 unixDate) { return UA_DateTime_fromUnixTime(unixDate); },
 		"toStruct", [](const UA_DateTime& date) { return UA_DateTime_toStruct(date); },

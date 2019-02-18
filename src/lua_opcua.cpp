@@ -3,6 +3,11 @@
 #define SOL_CHECK_ARGUMENTS 1
 #include "sol/sol.hpp"
 
+/******
+ * opcua module - open62541 lua wrapper
+ * @module opcua
+ *
+ */
 
 namespace lua_opcua {
 	void reg_opcua_enums(sol::table& module);
@@ -10,26 +15,6 @@ namespace lua_opcua {
 	void reg_opcua_node(sol::table& module);
 	void reg_opcua_client(sol::table& module);
 	void reg_opcua_server(sol::table& module);
-
-	typedef std::function<void (UA_LogLevel level, UA_LogCategory category, const char *msg)> LogStdFunction;
-	LogStdFunction g_ua_logger = nullptr;
-	/*
-	sol::function g_ua_logger;// = nullptr;
-	*/
-	void setLogger(LogStdFunction logger) {
-		g_ua_logger = logger;
-	}
-	void UA_LUA_Logger(UA_LogLevel level, UA_LogCategory category, const char *msg, va_list args) {
-		if (g_ua_logger && level > UA_LOGLEVEL_INFO) {
-			char *buf = new char[2048];
-			memset(buf, 0, 2048);
-			vsprintf(buf, msg, args);
-			g_ua_logger(level, category, buf);
-			delete[] buf;
-		} else {
-			UA_Log_Stdout(level, category, msg, args);
-		}
-	}
 
 	sol::table open_opcua(sol::this_state L) {
 		sol::state_view lua(L);
@@ -41,8 +26,12 @@ namespace lua_opcua {
 		reg_opcua_client(module);
 		reg_opcua_server(module);
 
-		//module.set_function("setLogger", [&](sol::function logger) { g_ua_logger = logger; });
-		module.set_function("setLogger", setLogger);
+		/***
+		 * Get status code name in string
+		 * @function getStatusCodeName
+		 * @tparam StatusCode sc Status code
+		 * @treturn string status code name string
+		 */
 		module.set_function("getStatusCodeName", UA_StatusCode_name);
 
 		return module;

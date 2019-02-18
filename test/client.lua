@@ -1,3 +1,7 @@
+-----------
+-- Client example
+--
+
 local opcua = require 'opcua'
 --[[
 opcua.setLogger(function(...)
@@ -5,19 +9,29 @@ opcua.setLogger(function(...)
 end)
 ]]--
 
-local config = opcua.ConnectionConfig.new()
-config.protocolVersion = 0
-config.sendBufferSize = 65535
-config.recvBufferSize = 65535
-config.maxMessageSize = 0
-config.maxChunkCount = 0
+local function connection_config_init(config)
+	config.protocolVersion = 0
+	config.sendBufferSize = 65535
+	config.recvBufferSize = 65535
+	config.maxMessageSize = 0
+	config.maxChunkCount = 0
+end
+
+local client = opcua.Client.new()
+
+local config = client:getConfig()
+config.timeout = 5000
+config.secureChannelLifeTime = 10 * 60 * 1000
+connection_config_init(config.localConnectionConfig)
 
 --local client = opcua.Client.new("opc.tcp://172.30.1.141:4840", 5000, 10 * 60 * 1000, config)
-local client = opcua.Client.new("opc.tcp://127.0.0.1:4840", 5000, 10 * 60 * 1000, config)
+--local client = opcua.Client.new("opc.tcp://127.0.0.1:4840", 5000, 10 * 60 * 1000, config)
 --local client = opcua.Client.new("opc.tcp://172.30.11.121:4840", 5000, 10 * 60 * 1000, config)
-local r, err = client:connect_username("user1", "password")
---local r, err = client:connect()
+
+--local r, err = client:connect_username("opc.tcp://127.0.0.1:4840", "user1", "password")
+local r, err = client:connect("opc.tcp://127.0.0.1:4840")
 print(r, err)
+print("StatusCodeName", opcua.getStatusCodeName(r))
 
 local root = client:getRootNode()
 print("Root:", root, root.browseName)

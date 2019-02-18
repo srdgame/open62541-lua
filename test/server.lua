@@ -1,3 +1,6 @@
+---------------
+-- Server example
+
 local opcua = require 'opcua'
 
 --[[

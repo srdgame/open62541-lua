@@ -1,6 +1,20 @@
-## OPCUA Types
+# OPCUA Types
 
-### OPCUA DateTime class
+## Contents
+* [DateTime](#datetime)
+* [DateTimeStruct](#datetimestuct)
+* [Variant](#variant)
+* [DataValue](#datavalue)
+* [NodeId](#nodid)
+* [ExpandedNodeId](#expandednodeid)
+* [QualifiedName](#qualifiedname)
+* [LocalizedText](#localizedtext)
+* [ObjectAttributes](#objectattributes)
+* [VariantAttributes](#variantattributes)
+* [ViewAttributes](#viewattributes)
+* [MethodAttributes](#methodattributes)
+
+### DateTime
 
 #### Constructor
 No default public constructor
@@ -33,7 +47,7 @@ Convert to DateTimeStruct
 Offset between local time and UTC time
 
 
-### OPCUA DateTimeStruct class
+### DateTimeStruct
 
 #### Constructors
 
@@ -55,7 +69,7 @@ Construct struct with datetime
 * month
 * year
 
-### OPCUA Variant class
+### Variant
 
 #### Constructors
 
@@ -106,7 +120,7 @@ Construct struct with datetime
 * asDateTime()
 
 
-### OPCUA DataValue class
+### DataValue
 
 #### Constructors
 
@@ -127,7 +141,7 @@ Construct struct with datetime
 * serverTimestamp -- DateTime
 * serverPicoseconds -- int16
 
-### OPCUA NodeId class
+### NodeId
 
 #### Constructors
 
@@ -152,7 +166,7 @@ Return the index
 * hash()
 
 
-### OPCUA ExpandedNodeId class
+### ExpandedNodeId
 
 #### Constructors
 
@@ -166,7 +180,7 @@ Return the index
 * serverIndex
 
 
-### OPCUA QualifiedName class
+### QualifiedName
 
 #### Constructors
 
@@ -178,7 +192,7 @@ Return the index
 * namespaceIndex
 
 
-### OPCUA LocalizedText class
+### LocalizedText
 
 #### Constructors
 
@@ -190,7 +204,7 @@ Return the index
 * locale
 
 
-### OPCUA ObjectAttributes class
+### ObjectAttributes
 
 #### Constructors
 
@@ -205,7 +219,7 @@ Return the index
 * userWriteMask
 * eventNotifier
 
-### OPCUA VariableAttributes
+### VariableAttributes
 
 #### Constructors
 
@@ -228,7 +242,7 @@ Return the index
 * historizing
 
 
-### OPCUA ViewAttributes
+### ViewAttributes
 
 #### Constructors
 
@@ -245,7 +259,7 @@ Return the index
 * eventNotifier
 
 
-### OPCUA MethodAttributes
+### MethodAttributes
 
 #### Constructors
 
