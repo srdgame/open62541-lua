@@ -74,7 +74,25 @@ Get sever node mananger.
 * deleteNode(id | NodeId, deleteReference | boolean)
 * deleteNode(id | Node, deleteReference | boolean)
 * setMethodCallback(methodNodeId | NodeId, func | MethodCallbackFunction)
+* setVariableNode_valueCallback(id | NodeId, callback | ValueCallback)
 
 ### OPCUA ClientNodeMgr class
 
 TODO:
+
+### ValueCallback class
+
+* new(func_on_read, func_on_write)
+
+#### Function Prototype
+```lua
+func_on_read = function(server, sessionId, sessionContext, nodeId, numericRange, dataValue)
+end
+func_on_write = function(server, sessionId, sessionContext, nodeId, numericRange, dataValue)
+end
+```
+
+#### Usage
+
+* on_read -  This will be called when client try to read value of variable. You cloud change the dataValue during on read callback
+* on_write - This will be called when client write value to variable. The dataValue has the value written from client.

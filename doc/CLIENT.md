@@ -63,6 +63,9 @@ N/A
 * getNode(ns | integer, id | Guid)
 * deleteNode(nodeId | NodeId, deleteReferences | boolean)
 * deleteNode(node | Node, deleteReferences | boolean)
+* createSubscription()
+* subscribeNode(subid | UA_UInt32, nodeId | NodeId)
+* run_iterate(ms | UA_UInt32)
 
 
 ### OPCUA ClientNodeMgr class

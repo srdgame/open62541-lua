@@ -11,16 +11,21 @@ end)
 
 local server = opcua.Server.new()
 local config = server.config
+print(config)
 --server:SetEndpoint("opc.tcp://127.0.0.1:4840/freeopcua/server/")
-config:setServerURI("urn:://exampleserver.freeopcua.github.io")
+config:setApplicationURI("urn:://exampleserver.freeopcua.github.io")
+
+print('xxxxxxxxxxxxxxxx')
 
 --print(pcall(server.GetNamespaceIndex, server, "http://examples.freeopcua.github.io"))
 --local idx = server:RegisterNamespace("http://examples.freeopcua.github.io")
 local idx = server:addNamespace("http://iot.symid.com")
 print(idx)
+local idx = server:addNamespace("http://freeioe.org")
 --print(server:GetNamespaceIndex("http://examples.freeopcua.github.io"))
 --print(idx)
 local objects = server:getObjectsNode()
+print(objects)
 local nid = opcua.NodeId.new(idx, 99)
 
 local attr = opcua.ObjectAttributes.new()
@@ -41,6 +46,18 @@ attr.userWriteMask = opcua.WriteMask.ALL
 attr.accessLevel = opcua.AccessLevel.RW
 --attr.userAccessLevel = opcua.AccessLevel.READ ~ opcua.AccessLevel.READ
 local myvar = newobject:addVariable(opcua.NodeId.new(idx, 98), "MyVariable", attr)
+local vc = opcua.ValueCallback:new(function(server, sessionId, sessionContext, nodeId, numericRange, dataValue)
+	print('ONREAD', nodeId.ns, nodeId.index)
+	print(numericRange)
+	print(dataValue.value:asValue(), dataValue.sourceTimestamp, dataValue.serverTimestamp)
+	dataValue.value = opcua.Variant.new('ddddxxxxx')
+end,
+function(server, sessionId, sessionContext, nodeId, numericRange, dataValue)
+	print('ONWRITE', nodeId.ns, nodeId.index)
+	print(numericRange)
+	print(dataValue.value:asValue(), dataValue.sourceTimestamp, dataValue.serverTimestamp)
+end)
+server:setVariableNode_valueCallback(opcua.NodeId.new(idx, 98), vc)
 
 local attr = opcua.VariableAttributes.new()
 attr.displayName = opcua.LocalizedText.new("en_US", "My Time Ticker")
@@ -52,14 +69,17 @@ local attr = opcua.VariableAttributes.new()
 attr.displayName = opcua.LocalizedText.new("en_US", "My Property DisplayName")
 attr.description = opcua.LocalizedText.new("en_US", "My Property Description")
 attr.value = opcua.Variant.new(8.8)
---[[
 attr.writeMask = opcua.WriteMask.ALL
 attr.userWriteMask = opcua.WriteMask.ALL
-]]
 attr.accessLevel = opcua.AccessLevel.RW
 --attr.userAccessLevel = opcua.AccessLevel.READ ~ opcua.AccessLevel.READ
-local myprop = newobject:addVariable(opcua.NodeId.new(idx, 97), "MyProperty", attr)
-myprop.displayName = opcua.LocalizedText.new("en_US", "AAAAAAAAAAAAA")
+
+for i = 110, 500 do
+	local nid = opcua.NodeId.new(idx, i)
+	local myprop, err = newobject:addVariable(nid, "MyProperty"..i, attr)
+	assert(myprop, err)
+	myprop.displayName = opcua.LocalizedText.new("en_US", "AAAAAAAAAAAAA"..i)
+end
 
 local root = server:getRootNode()
 print("Root node is", root)
@@ -80,9 +100,10 @@ server:addCallback(function()
 end, 1000)
 
 
+--[[
 server:startup()
 while true do
-	if counter > 100 then
+	if counter > 10000 then
 		break
 	end
 	server:run_once(false)
@@ -93,9 +114,8 @@ while true do
 end
 
 server:shutdown()
+]]--
 
---[[
 server:run()
 print('run finished')
 print(server.running)
-]]--

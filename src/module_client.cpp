@@ -1,7 +1,9 @@
 #include <iostream>
+#include <map>
+#include <list>
 
 #include "open62541.h"
-#include "examples/common.h"
+#include "read_file.h"
 
 #define SOL_CHECK_ARGUMENTS 1
 #include "sol/sol.hpp"
@@ -320,31 +322,134 @@ static void cleanupClient(UA_Client* client, UA_ByteString* remoteCertificate) {
     UA_Client_delete(client); /* Disconnects the client internally */
 }
 
+class UA_ClientConfig_Proxy {
+	UA_ClientConfig *_config;
+protected:
+	friend class UA_Client_Proxy;
 
-void UA_LUA_Logger(UA_LogLevel level, UA_LogCategory category, const char *msg, va_list args);
-class UA_Client_Proxy {
-	UA_Client_Proxy(UA_Client_Proxy& prox);
+	UA_ClientConfig_Proxy(UA_ClientConfig *config) : _config(config) {
+	}
 public:
+	void setTimeout(int timeout) {
+		_config->timeout = timeout;
+	}
+	void setSecureChannelLifeTime(int time) {
+		_config->secureChannelLifeTime = time;
+	}
+	void setProductURI(const std::string& uri) {
+		/*
+		UA_String_clear(&_config->buildInfo.productUri);
+		_config->buildInfo.productUri = UA_STRING_ALLOC((char*)uri.c_str())
+		*/
+		UA_String_clear(&_config->clientDescription.productUri);
+		_config->clientDescription.productUri = UA_STRING_ALLOC((char*)uri.c_str());
+	}
+	void setApplicationURI(const std::string& uri) {
+		UA_String_clear(&_config->clientDescription.applicationUri);
+		_config->clientDescription.applicationUri = UA_STRING_ALLOC((char*)uri.c_str());
+	}
+	void setApplicationName(const std::string& locale, const std::string& name) {
+		UA_LocalizedText_clear(&_config->clientDescription.applicationName);
+		_config->clientDescription.applicationName = UA_LOCALIZEDTEXT_ALLOC(locale.c_str(), name.c_str());
+	}
+};
+
+class UA_Client_Proxy {
+protected:
+	UA_Client_Proxy(UA_Client_Proxy& prox);
 	UA_Client* _client;
 	ClientNodeMgr* _mgr;
+
+	typedef std::function<void(UA_UInt32 monId, UA_DataValue value, UA_UInt32 subId, void *monContext)> SubscribeCallback;
+	std::map<UA_UInt32, SubscribeCallback> _subCallbackMap;
+
+	/*
+	struct SubscribeCallbackItem {
+		UA_UInt32 sub_id;
+		UA_UInt32 mon_id;
+		UA_DataValue value;
+		void* context;
+		SubscribeCallbackItem(UA_UInt32 sub_id, UA_UInt32 mon_id, UA_DataValue* value) 
+			: sub_id(sub_id),
+			mon_id(mon_id)
+		{
+			UA_DataValue_copy(value, &this->value);
+		}
+	};
+	std::list<SubscribeCallbackItem*> _subCallbackItems;
+	*/
+
+	typedef std::function<void(UA_Client_Proxy* client, UA_ClientState state)> StateCallback;
+	StateCallback _stateCallback;
+	//UA_ClientState _stateCallbackNew;
+	
+
+	static void
+		handler_MonitoredItemChanged(UA_Client *client, UA_UInt32 subId, void *subContext,
+				UA_UInt32 monId, void *monContext, UA_DataValue *value) {
+			UA_Client_Proxy* pClient = (UA_Client_Proxy*)subContext;
+			pClient->handleMonitoredItemChange(client, subId, monId, monContext, value);
+		}
+
+	static void
+		handler_MonitoredItemDeleted(UA_Client *client, UA_UInt32 subId, void *subContext,
+				UA_UInt32 monId, void *monContext) {
+			UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "Monitored item %u was deleted, sub_id %u", monId, subId);
+		}
+
+	static void
+		clientStateChangeCallback(UA_Client* client, UA_ClientState clientState) {
+			UA_ClientConfig* cc = UA_Client_getConfig(client);
+			UA_Client_Proxy* pClient = (UA_Client_Proxy*)cc->clientContext;
+			if (pClient->_stateCallback) {
+				//pClient->_stateCallbackNew = clientState;
+				pClient->_stateCallback(pClient, clientState);
+			}
+		}
+
+	static void
+		subscriptionInactivityCallback (UA_Client *client, UA_UInt32 subId, void *subContext) {
+			UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "Inactivity for subscription %u", subId);
+		}
+
+	static void
+		statusChangeSubscriptionCallback(UA_Client *client, UA_UInt32 subId, void *subContext,
+				UA_StatusChangeNotification *notification) {
+			UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "Subscription Id %u status was changed", subId);
+		}
+
+	static void
+		deleteSubscriptionCallback(UA_Client *client, UA_UInt32 subscriptionId, void *subscriptionContext) {
+			UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "Subscription Id %u was deleted", subscriptionId);
+		}
+public:
+	UA_ClientConfig_Proxy *_config;
+
 	UA_Client_Proxy() {
+		_stateCallback = nullptr;
+		//_stateCallbackNew = (UA_ClientState)-1;
 		_client = UA_Client_new();
 		if (!_client) {
 			printf("Initialized UA_Client failure!!!");
 			exit(-1);
 		}
-		UA_ClientConfig_setDefault(UA_Client_getConfig(_client));
+		UA_ClientConfig* cc = UA_Client_getConfig(_client);
+		UA_ClientConfig_setDefault(cc);
+
+		cc->clientContext = this;
+		cc->stateCallback = &UA_Client_Proxy::clientStateChangeCallback;
+		cc->subscriptionInactivityCallback = &UA_Client_Proxy::subscriptionInactivityCallback;
+
 		_mgr = new ClientNodeMgr(_client);
-	}
-	~UA_Client_Proxy() {
-		UA_Client_delete(_client);
-		delete _mgr;
+		_config = new UA_ClientConfig_Proxy(cc);
 	}
 
-	UA_StatusCode setEncryption (const char* securityPolicy, const char* priCert, const char* priKey) {
+	UA_Client_Proxy(UA_MessageSecurityMode securityMode, const std::string& priCert, const std::string& priKey) {
+		_stateCallback = nullptr;
+		//_stateCallbackNew = (UA_ClientState)-1;
 		/* Load certificate and private key */
-		UA_ByteString certificate = loadFile(priCert);
-		UA_ByteString privateKey  = loadFile(priKey);
+		UA_ByteString certificate = loadFile(priCert.c_str());
+		UA_ByteString privateKey  = loadFile(priKey.c_str());
 
 		/* Load the trustList. Load revocationList is not supported now */
 		/* trust list not support for now
@@ -362,7 +467,9 @@ public:
 		UA_ByteString *revocationList = NULL;
 		size_t revocationListSize = 0;
 
+		_client = UA_Client_new();
 		UA_ClientConfig *cc = UA_Client_getConfig(_client);
+		cc->securityMode = securityMode;
 		UA_StatusCode rc = UA_ClientConfig_setDefaultEncryption(cc, certificate, privateKey,
 				trustList, trustListSize,
 				revocationList, revocationListSize);
@@ -377,15 +484,27 @@ public:
 		*/
 
 		/* Secure client connect */
-		cc->securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT; /* require encryption */
-		return rc;
+		cc->securityMode = securityMode; /* require encryption */
+
+		cc->clientContext = this;
+		cc->stateCallback = &UA_Client_Proxy::clientStateChangeCallback;
+		cc->subscriptionInactivityCallback = &UA_Client_Proxy::subscriptionInactivityCallback;
+
+		_mgr = new ClientNodeMgr(_client);
+		_config = new UA_ClientConfig_Proxy(cc);
+	}
+
+	~UA_Client_Proxy() {
+		UA_Client_delete(_client);
+		delete _mgr;
+	}
+
+	void setStateCallback(StateCallback callback) {
+		_stateCallback = callback;
 	}
 
 	UA_ClientState getState() {
 		return UA_Client_getState(_client);
-	}
-	UA_ClientConfig& getConfig() {
-		return *UA_Client_getConfig(_client);
 	}
 	void reset() {
 		UA_Client_reset(_client);
@@ -459,7 +578,95 @@ public:
 	UA_StatusCode deleteNode(const UA_Node& node, bool deleteReferences) {
 		return deleteNode(node._id, deleteReferences);
 	}
+
+	sol::variadic_results createSubscription(SubscribeCallback callback, sol::this_state L) {
+		UA_StatusCode re = -1;
+		if (!this->_client) {
+			RETURN_RESULT(UA_UInt32, -1);
+		}
+		/* A new session was created. We need to create the subscription. */
+		/* Create a subscription */
+		UA_CreateSubscriptionRequest request = UA_CreateSubscriptionRequest_default();
+		UA_CreateSubscriptionResponse response = UA_Client_Subscriptions_create(this->_client, request,
+				this, statusChangeSubscriptionCallback, deleteSubscriptionCallback);
+
+		re = response.responseHeader.serviceResult;
+		if ( re == UA_STATUSCODE_GOOD) {
+			_subCallbackMap[response.subscriptionId] = callback;
+		}
+		RETURN_RESULT(UA_UInt32, response.subscriptionId);
+	}
+	void handleMonitoredItemChange(UA_Client *client, UA_UInt32 subId, UA_UInt32 monId, void *monContext, UA_DataValue *value) {
+		if (_client != client) {
+			return;
+		}
+		/*
+		SubscribeCallbackItem* item = new SubscribeCallbackItem(subId, monId, value);
+		_subCallbackItems.push_back(item);
+		*/
+
+		UA_DataValue val;
+		UA_DataValue_copy(value, &val);
+		auto ptr = _subCallbackMap.find(subId);
+		if (ptr != _subCallbackMap.end()) {
+			(ptr->second)(monId, val, subId, monContext);
+		} else {
+			UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "Cannot find %u was deleted", subId);
+		}
+	}
+
+	sol::variadic_results subscribeNode(UA_UInt32 sub_id, const UA_NodeId& nodeId, sol::this_state L) {
+		/* Add a MonitoredItem */
+		UA_MonitoredItemCreateRequest monRequest =
+			UA_MonitoredItemCreateRequest_default(nodeId);
+
+		UA_MonitoredItemCreateResult monResponse =
+			UA_Client_MonitoredItems_createDataChange(this->_client, sub_id,
+					UA_TIMESTAMPSTORETURN_BOTH, monRequest, NULL,
+					handler_MonitoredItemChanged, handler_MonitoredItemDeleted);
+
+		UA_StatusCode re = monResponse.statusCode;
+		RETURN_RESULT(UA_UInt32, monResponse.monitoredItemId)
+	}
+
+	UA_UInt16 run_iterate(UA_UInt32 waitInternal) {
+		/*
+		UA_UInt32 last = 0;
+		UA_StatusCode re;
+		do {
+			re = UA_Client_run_iterate(this->_client, 20);
+			if (_subCallbackItems.size() > 0) {
+				auto ptr = _subCallbackItems.begin();
+				for (; ptr != _subCallbackItems.end(); ++ptr) {
+					SubscribeCallbackItem& item = **ptr;
+
+					auto mptr = _subCallbackMap.find(item.sub_id);
+					if (mptr != _subCallbackMap.end()) {
+						UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "Trigger calback", item.sub_id);
+						(mptr->second)(item.mon_id, &item.value, item.sub_id, item.context);
+						break;
+					} else {
+						UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "Cannot find %u callback", item.sub_id);
+					}
+
+					delete *ptr;
+				}
+				_subCallbackItems.clear();
+			}
+			if (_stateCallbackNew != -1 && _stateCallback) {
+				_stateCallback(this, _stateCallbackNew);
+				_stateCallbackNew = (UA_ClientState)-1;
+			}
+
+		} while ( ( (last + 20) < waitInternal) && re == UA_STATUSCODE_GOOD);
+
+		return re;
+		*/
+		return UA_Client_run_iterate(this->_client, waitInternal);
+	}
+	
 };
+
 
 void reg_opcua_client(sol::table& module) {
 	module.new_usertype<UA_ConnectionConfig>("ConnectionConfig",
@@ -469,6 +676,15 @@ void reg_opcua_client(sol::table& module) {
 		"maxMessageSize", &UA_ConnectionConfig::maxMessageSize,
 		"maxChunkCount", &UA_ConnectionConfig::maxChunkCount
 	);
+	module.new_usertype<UA_ClientConfig_Proxy>("ClientConfig",
+		"new", sol::no_constructor, 
+		"setTimeout", &UA_ClientConfig_Proxy::setTimeout,
+		"setSecureChannelLifeTime", &UA_ClientConfig_Proxy::setSecureChannelLifeTime,
+		"setProductURI", &UA_ClientConfig_Proxy::setProductURI,
+		"setApplicationURI", &UA_ClientConfig_Proxy::setApplicationURI,
+		"setApplicationName", &UA_ClientConfig_Proxy::setApplicationName
+	);
+	/*
 	module.new_usertype<UA_ApplicationDescription>("ApplicationDescription",
 		"applicationUri", &UA_ApplicationDescription::applicationUri,
 		"productUri", &UA_ApplicationDescription::productUri,
@@ -479,6 +695,7 @@ void reg_opcua_client(sol::table& module) {
 		"discoveryUrlsSize", &UA_ApplicationDescription::discoveryUrlsSize,
 		"discoveryUrls", &UA_ApplicationDescription::discoveryUrls
 	);
+	*/
 	module.new_usertype<UA_ClientConfig>("ClientConfig",
 		"timeout", &UA_ClientConfig::timeout,
 		"clientDescription", &UA_ClientConfig::clientDescription,
@@ -490,8 +707,10 @@ void reg_opcua_client(sol::table& module) {
 	);
 
 	module.new_usertype<UA_Client_Proxy>("Client",
+		sol::constructors<UA_Client_Proxy(), UA_Client_Proxy(UA_MessageSecurityMode, const std::string&, const std::string&)>(),
+		"config", &UA_Client_Proxy::_config,
+		"setStateCallback", &UA_Client_Proxy::setStateCallback,
 		"getState", &UA_Client_Proxy::getState,
-		"getConfig", &UA_Client_Proxy::getConfig,
 		"reset", &UA_Client_Proxy::reset,
 		"connect", &UA_Client_Proxy::connect,
 		"connect_username", &UA_Client_Proxy::connect_username,
@@ -514,7 +733,10 @@ void reg_opcua_client(sol::table& module) {
 		"deleteNode", sol::overload(
 			static_cast<UA_StatusCode (UA_Client_Proxy::*)(const UA_NodeId&, bool) >(&UA_Client_Proxy::deleteNode),
 			static_cast<UA_StatusCode (UA_Client_Proxy::*)(const UA_Node&, bool) >(&UA_Client_Proxy::deleteNode)
-		)
+		),
+		"createSubscription", &UA_Client_Proxy::createSubscription,
+		"subscribeNode", &UA_Client_Proxy::subscribeNode,
+		"run_iterate", &UA_Client_Proxy::run_iterate
 	);
 
 	module.new_usertype<ClientNodeMgr>("ClientNodeMgr",

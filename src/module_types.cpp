@@ -14,7 +14,7 @@ std::string toString(const UA_NodeId& id) {
 	UA_String nodeIdStr = UA_STRING_NULL;
 	UA_NodeId_toString(&id, &nodeIdStr);
 	std::string str = std::string((const char*)nodeIdStr.data, nodeIdStr.length);
-	UA_String_deleteMembers(&nodeIdStr);
+	UA_String_clear(&nodeIdStr);
 	return str;
 }
 
@@ -110,7 +110,7 @@ void reg_opcua_types(sol::table& module) {
 				UA_Variant var;
 				UA_Variant_init(&var);
 				UA_Variant_setScalarCopy(&var, &str, &UA_TYPES[UA_TYPES_STRING]);
-				UA_String_deleteMembers(&str);
+				UA_String_clear(&str);
 				return var;
 			},
 			[](const UA_Variant& obj) {
@@ -135,9 +135,10 @@ void reg_opcua_types(sol::table& module) {
 		"uint64", sol::initializers([](UA_Variant& var, uint64_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_UINT64]);}),
 		"datetime", sol::initializers([](UA_Variant& var, UA_DateTime val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_DATETIME]);}),
 
-		"__gc", sol::destructor(UA_Variant_deleteMembers),
+		"__gc", sol::destructor(UA_Variant_clear),
 		"isEmpty", [](UA_Variant& var) { return UA_Variant_isEmpty(&var); },
 		"isScalar", [](UA_Variant& var) { return UA_Variant_isScalar(&var); },
+		"isNumeric", [](UA_Variant& var) { return UA_DataType_isNumeric(var.type); },
 		"hasScalarType", [](UA_Variant& var, int type) { return UA_Variant_hasScalarType(&var, &UA_TYPES[type]); },
 		"hasArrayType", [](UA_Variant& var, int type) { return UA_Variant_hasArrayType(&var, &UA_TYPES[type]); },
 		"setScalar", [](UA_Variant& var, void* p, int type) { return UA_Variant_setScalar(&var, p, &UA_TYPES[type]); },
@@ -147,10 +148,10 @@ void reg_opcua_types(sol::table& module) {
 		"copyRange", [](UA_Variant& var, const UA_Variant& src, const UA_NumericRange range) { return UA_Variant_copyRange(&src, &var, range); },
 		"setRange", [](UA_Variant& var, void* array, size_t arraySize, const UA_NumericRange range) { return UA_Variant_setRange(&var, array, arraySize, range); },
 		"setRangeCopy", [](UA_Variant& var, void* array, size_t arraySize, const UA_NumericRange range) { return UA_Variant_setRangeCopy(&var, array, arraySize, range); },
-		"asLong", [](const UA_Variant& var) {
+		"asLong", [](const UA_Variant& var, sol::this_state L) {
 			std::int64_t val = 0;
 			if (!UA_Variant_isScalar(&var))
-				return val;
+				RETURN_ERROR("not scalar type")
 			if (var.type == &UA_TYPES[UA_TYPES_BOOLEAN])
 				val = *(UA_Boolean*)var.data ? 1 : 0;
 			else if (var.type == &UA_TYPES[UA_TYPES_SBYTE])
@@ -169,12 +170,14 @@ void reg_opcua_types(sol::table& module) {
 				val = *(UA_Float*)var.data;
 			else if (var.type == &UA_TYPES[UA_TYPES_DOUBLE])
 				val = *(UA_Double*)var.data;
-			return val;
+			else
+				RETURN_ERROR("not buildin numeric type")
+			RETURN_OK(std::int64_t, val)
 		},
-		"asDouble", [](const UA_Variant& var) {
+		"asDouble", [](const UA_Variant& var, sol::this_state L) {
 			double val = 0;
 			if (!UA_Variant_isScalar(&var))
-				return val;
+				RETURN_ERROR("not scalar type")
 			if (var.type == &UA_TYPES[UA_TYPES_BOOLEAN])
 				val = *(UA_Boolean*)var.data ? 1 : 0;
 			else if (var.type == &UA_TYPES[UA_TYPES_SBYTE])
@@ -193,23 +196,59 @@ void reg_opcua_types(sol::table& module) {
 				val = *(UA_Float*)var.data;
 			else if (var.type == &UA_TYPES[UA_TYPES_DOUBLE])
 				val = *(UA_Double*)var.data;
-			return val;
+			else
+				RETURN_ERROR("not buildin numeric type")
+			RETURN_OK(double, val)
 		},
-		"asString", [](const UA_Variant& var) {
+		"asString", [](const UA_Variant& var, sol::this_state L) {
 			if (!UA_Variant_isScalar(&var))
-				return std::string("Not Scalar Value");
+				RETURN_ERROR("not scalar type")
 			if (var.type == &UA_TYPES[UA_TYPES_STRING]) {
 				UA_String str = *(UA_String*)var.data;
-				return std::string((const char*)str.data, str.length);
+				RETURN_OK(std::string, std::string((const char*)str.data, str.length))
+			} else {
+				RETURN_ERROR("not string type")
 			}
-			return std::string("Not String Type Value");
 		},
-		"asDateTime", [](const UA_Variant& var) {
-			UA_DateTime dt = 0L;
+		"asDateTime", [](const UA_Variant& var, sol::this_state L) {
 			if (var.type == &UA_TYPES[UA_TYPES_DATETIME] ) {
+				UA_DateTime dt = 0L;
 				dt = *(UA_DateTime*)var.data;
+				RETURN_OK(UA_DateTime, dt)
+			} else {
+				RETURN_ERROR("not string type")
 			}
-			return dt;
+		},
+		"asValue", [](const UA_Variant& var, sol::this_state L) {
+			if (var.type == &UA_TYPES[UA_TYPES_BOOLEAN] ) {
+				RETURN_OK(UA_Boolean, *(UA_Boolean*)var.data);
+			} else if (var.type == &UA_TYPES[UA_TYPES_BOOLEAN]) {
+				RETURN_OK(UA_Boolean, *(UA_Boolean*)var.data);
+			} else if (var.type == &UA_TYPES[UA_TYPES_SBYTE]) {
+				RETURN_OK(UA_SByte, *(UA_SByte*)var.data);
+			} else if (var.type == &UA_TYPES[UA_TYPES_BYTE]) {
+				RETURN_OK(UA_Byte, *(UA_Byte*)var.data);
+			} else if (var.type == &UA_TYPES[UA_TYPES_INT32]) {
+				RETURN_OK(UA_Int32, *(UA_Int32*)var.data);
+			} else if (var.type == &UA_TYPES[UA_TYPES_INT32]) {
+				RETURN_OK(UA_UInt32, *(UA_UInt32*)var.data);
+			} else if (var.type == &UA_TYPES[UA_TYPES_INT64]) {
+				RETURN_OK(UA_Int64, *(UA_Int64*)var.data);
+			} else if (var.type == &UA_TYPES[UA_TYPES_UINT64]) {
+				RETURN_OK(UA_UInt64, *(UA_UInt64*)var.data);
+			} else if (var.type == &UA_TYPES[UA_TYPES_FLOAT]) {
+				RETURN_OK(UA_Float, *(UA_Float*)var.data);
+			} else if (var.type == &UA_TYPES[UA_TYPES_DOUBLE]) {
+				RETURN_OK(UA_Double, *(UA_Double*)var.data);
+			} else if (var.type == &UA_TYPES[UA_TYPES_STRING]) {
+				UA_String str = *(UA_String*)var.data;
+				RETURN_OK(std::string, std::string((const char*)str.data, str.length))
+			}  else if (var.type == &UA_TYPES[UA_TYPES_DATETIME] ) {
+				UA_DateTime dt = 0L;
+				dt = *(UA_DateTime*)var.data;
+				RETURN_OK(UA_DateTime, dt)
+			}
+			RETURN_ERROR("not supported data type")
 		}
 	);
 
@@ -224,7 +263,7 @@ void reg_opcua_types(sol::table& module) {
 				return var;
 			}
 		),
-		"__gc", sol::destructor(UA_DataValue_deleteMembers),
+		"__gc", sol::destructor(UA_DataValue_clear),
 		"hasValue", sol::property([](UA_DataValue& obj) { return obj.hasValue; }),
 		"hasStatus", sol::property([](UA_DataValue& obj) { return obj.hasStatus; }),
 		"hasSourceTimestamp", sol::property([](UA_DataValue& obj) { return obj.hasSourceTimestamp; }),
@@ -254,7 +293,7 @@ void reg_opcua_types(sol::table& module) {
 			[](int ns, const char* val){ return UA_NODEID_STRING_ALLOC(ns, val); },
 			[](int ns, UA_Guid val){ UA_NODEID_GUID(ns, val); }
 		),
-		"__gc", sol::destructor(UA_NodeId_deleteMembers),
+		"__gc", sol::destructor(UA_NodeId_clear),
 		"__eq", [](const UA_NodeId& left, const UA_NodeId& right) { return UA_NodeId_equal(&left, &right); },
 		"isNull", [](const UA_NodeId& id) { return UA_NodeId_isNull(&id); },
 		"hash", [](const UA_NodeId& id) { return UA_NodeId_hash(&id); },
@@ -288,7 +327,7 @@ void reg_opcua_types(sol::table& module) {
 			[](int ns, const char* val) { return UA_EXPANDEDNODEID_STRING_ALLOC(ns, val); }
 		),
 		// TODO: for UUID, BYTESTRING
-		"__gc", sol::destructor(UA_ExpandedNodeId_deleteMembers),
+		"__gc", sol::destructor(UA_ExpandedNodeId_clear),
 		"__eq", [](const UA_ExpandedNodeId& left, const UA_ExpandedNodeId& right) {
 			return UA_ExpandedNodeId_equal(&left, &right);
 		},
@@ -301,7 +340,7 @@ void reg_opcua_types(sol::table& module) {
 
 	module.new_usertype<UA_QualifiedName>("QualifiedName",
 		"new", sol::factories([](int ns, const char* val) { return UA_QUALIFIEDNAME_ALLOC(ns, val); }),
-		"__gc", sol::destructor(UA_QualifiedName_deleteMembers),
+		"__gc", sol::destructor(UA_QualifiedName_clear),
 		"__eq", [](const UA_QualifiedName& left, const UA_QualifiedName& right) {
 			return UA_QualifiedName_equal(&left, &right);
 			//return left.namespaceIndex == right.namespaceIndex & UA_String_equal(&left.name, &right.name);
@@ -318,7 +357,7 @@ void reg_opcua_types(sol::table& module) {
 
 	module.new_usertype<UA_LocalizedText>("LocalizedText",
 		"new", sol::factories([](const char* locale, const char* text) { return UA_LOCALIZEDTEXT_ALLOC(locale, text); }),
-		"__gc", sol::destructor(UA_LocalizedText_deleteMembers),
+		"__gc", sol::destructor(UA_LocalizedText_clear),
 		"__tostring", [](const UA_LocalizedText& obj) {
 			std::stringstream ss;
 			ss << "LocalizedText(locale=" << std::string((char*)obj.locale.data, obj.locale.length);
@@ -333,7 +372,7 @@ void reg_opcua_types(sol::table& module) {
 		"new", sol::factories([]() { 
 			return UA_ObjectAttributes_default;
 		}),
-		"__gc", sol::destructor(UA_ObjectAttributes_deleteMembers),
+		"__gc", sol::destructor(UA_ObjectAttributes_clear),
 		"specifiedAttributes", &UA_ObjectAttributes::specifiedAttributes,
 		MAP_PROPERTY(UA_ObjectAttributes, UA_LocalizedText, displayName),
 		MAP_PROPERTY(UA_ObjectAttributes, UA_LocalizedText, description),
@@ -346,7 +385,7 @@ void reg_opcua_types(sol::table& module) {
 		"new", sol::factories([]() { 
 			return UA_VariableAttributes_default;
 		}),
-		"__gc", sol::destructor(UA_VariableAttributes_deleteMembers),
+		"__gc", sol::destructor(UA_VariableAttributes_clear),
 		"specifiedAttributes", &UA_VariableAttributes::specifiedAttributes,
 		MAP_PROPERTY(UA_VariableAttributes, UA_LocalizedText, displayName),
 		MAP_PROPERTY(UA_VariableAttributes, UA_LocalizedText, description),
@@ -366,7 +405,7 @@ void reg_opcua_types(sol::table& module) {
 		"new", sol::factories([]() { 
 			return UA_ViewAttributes_default;
 		}),
-		"__gc", sol::destructor(UA_ViewAttributes_deleteMembers),
+		"__gc", sol::destructor(UA_ViewAttributes_clear),
 		"specifiedAttributes", &UA_ViewAttributes::specifiedAttributes,
 		MAP_PROPERTY(UA_ViewAttributes, UA_LocalizedText, displayName),
 		MAP_PROPERTY(UA_ViewAttributes, UA_LocalizedText, description),
@@ -380,7 +419,7 @@ void reg_opcua_types(sol::table& module) {
 		"new", sol::factories([]() { 
 			return UA_MethodAttributes_default;
 		}),
-		"__gc", sol::destructor(UA_MethodAttributes_deleteMembers),
+		"__gc", sol::destructor(UA_MethodAttributes_clear),
 		"specifiedAttributes", &UA_MethodAttributes::specifiedAttributes,
 		MAP_PROPERTY(UA_MethodAttributes, UA_LocalizedText, displayName),
 		MAP_PROPERTY(UA_MethodAttributes, UA_LocalizedText, description),

@@ -9,6 +9,7 @@ opcua.setLogger(function(...)
 end)
 ]]--
 
+--[[
 local function connection_config_init(config)
 	config.protocolVersion = 0
 	config.sendBufferSize = 65535
@@ -16,13 +17,14 @@ local function connection_config_init(config)
 	config.maxMessageSize = 0
 	config.maxChunkCount = 0
 end
+]]--
 
 local client = opcua.Client.new()
 
-local config = client:getConfig()
-config.timeout = 5000
-config.secureChannelLifeTime = 10 * 60 * 1000
-connection_config_init(config.localConnectionConfig)
+local config = client.config
+config:setTimeout( 5000)
+config:setSecureChannelLifeTime( 10 * 60 * 1000 )
+--connection_config_init(config.localConnectionConfig)
 
 --local client = opcua.Client.new("opc.tcp://172.30.1.141:4840", 5000, 10 * 60 * 1000, config)
 --local client = opcua.Client.new("opc.tcp://127.0.0.1:4840", 5000, 10 * 60 * 1000, config)
@@ -30,6 +32,7 @@ connection_config_init(config.localConnectionConfig)
 
 --local r, err = client:connect_username("opc.tcp://127.0.0.1:4840", "user1", "password")
 local r, err = client:connect("opc.tcp://127.0.0.1:4840")
+--local r, err = client:connect("opc.tcp://172.30.11.232:4840")
 print(r, err)
 print("StatusCodeName", opcua.getStatusCodeName(r))
 
@@ -56,7 +59,7 @@ local id = opcua.NodeId.new(2, 99)
 local id = opcua.NodeId.new(2, 1)
 print( 'getNode', client:getNode(id))
 
-local idx = client:getNamespaceIndex("http://iot.symid.com");
+local idx = client:getNamespaceIndex("http://freeioe.org");
 if not idx then
 	idx = client:getNamespaceIndex("http://iot.symid.com/IDIDIDIDID")
 end
@@ -98,18 +101,19 @@ if var then
 	print("getChild", var, err)
 	print("Var user write mask", var.userWriteMask, "Var user accessl Level", var.userAccessLevel)
 	local dv = var.dataValue
-	print('Value of MyVariable', dv.value)
+	print('Value of MyVariable', dv.value:asValue())
 	print('Source Timestamp of MyVariable', dv.sourceTimestamp)
 	print('Server Timestamp of MyVariable', dv.serverTimestamp)
 	--var.dataValue = opcua.DataValue.new(opcua.Variant.new('ddddddddddddd'))
 	local dv = opcua.DataValue.new(opcua.Variant.new('ddddddddddddd2'))
 	dv.sourceTimestamp = opcua.DateTime.fromUnixTime(os.time())
 	var.dataValue = dv
+
 	local var = objects:getChild({idx..":NewObject"})
 	print('NewObject', var)
 	print('MyVariable', var:getChild("MyVariable"))
 
-	local prop = var:getChild("MyProperty")
+	local prop = var:getChild("MyProperty110")
 	prop.value = opcua.Variant.new("i am a test")
 else
 	print("Newobject->MyVariable does not exits")

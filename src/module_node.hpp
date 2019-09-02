@@ -36,7 +36,7 @@ struct UA_Node_Finder : public UA_Node_callback {
 	bool _found;
 
 	UA_Node_Finder(const UA_Node* parent, const std::string& name, AttributeReader* reader);
-	~UA_Node_Finder() { UA_String_deleteMembers(&_name); }
+	~UA_Node_Finder() { UA_String_clear(&_name); }
 	UA_StatusCode operator()(UA_NodeId childId, UA_Boolean isInverse, UA_NodeId referenceTypeId);
 };
 
@@ -66,7 +66,7 @@ struct AutoReleaseNodeId {
 		UA_NodeId_init(&id);
 	}
 	~AutoReleaseNodeId() {
-		UA_NodeId_deleteMembers(&id);
+		UA_NodeId_clear(&id);
 	}
 	operator UA_NodeId* () {
 		return &id;
@@ -90,8 +90,8 @@ public:
 	UA_NodeClass _class;
 
 	virtual ~UA_Node() {
-		UA_NodeId_deleteMembers(&_id);
-		UA_NodeId_deleteMembers(&_referenceType);
+		UA_NodeId_clear(&_id);
+		UA_NodeId_clear(&_referenceType);
 	}
 	UA_Node(const UA_Node& obj) {
 		_mgr = obj._mgr;
@@ -137,9 +137,9 @@ public:
 		UA_NodeId type = UA_NODEID_NUMERIC(0, UA_NS0ID_FOLDERTYPE);
 		AutoReleaseNodeId outId;
 		UA_StatusCode re = _mgr->addObject(id, _id, referenceTypeId, browse_name, type, attr, outId);
-		UA_QualifiedName_deleteMembers(&browse_name);
-		UA_NodeId_deleteMembers(&referenceTypeId);
-		UA_NodeId_deleteMembers(&type);
+		UA_QualifiedName_clear(&browse_name);
+		UA_NodeId_clear(&referenceTypeId);
+		UA_NodeId_clear(&type);
 		RETURN_RESULT(UA_Node, UA_Node(_mgr, *outId, _referenceType, UA_NODECLASS_OBJECT))
 	}
 	sol::variadic_results addObject(const UA_NodeId id, const char* browse, const UA_ObjectAttributes attr, sol::this_state L) {
@@ -148,9 +148,9 @@ public:
 		UA_NodeId type = UA_NODEID_NUMERIC(0, UA_NS0ID_BASEOBJECTTYPE);
 		AutoReleaseNodeId outId;
 		UA_StatusCode re = _mgr->addObject(id, _id, referenceTypeId, browse_name, type, attr, outId);
-		UA_QualifiedName_deleteMembers(&browse_name);
-		UA_NodeId_deleteMembers(&referenceTypeId);
-		UA_NodeId_deleteMembers(&type);
+		UA_QualifiedName_clear(&browse_name);
+		UA_NodeId_clear(&referenceTypeId);
+		UA_NodeId_clear(&type);
 		RETURN_RESULT(UA_Node, UA_Node(_mgr, *outId, _referenceType, UA_NODECLASS_OBJECT))
 	}
 	sol::variadic_results addVariable(const UA_NodeId id, const char* browse, const UA_VariableAttributes attr, sol::this_state L) {
@@ -158,8 +158,8 @@ public:
 		UA_NodeId referenceTypeId = UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES);
 		AutoReleaseNodeId outId;
 		UA_StatusCode re = _mgr->addVariable(id, _id, referenceTypeId, browse_name, UA_NODEID_NULL, attr, outId);
-		UA_QualifiedName_deleteMembers(&browse_name);
-		UA_NodeId_deleteMembers(&referenceTypeId);
+		UA_QualifiedName_clear(&browse_name);
+		UA_NodeId_clear(&referenceTypeId);
 		RETURN_RESULT(UA_Node, UA_Node(_mgr, *outId, _referenceType, UA_NODECLASS_VARIABLE))
 	}
 	sol::variadic_results addView(const UA_NodeId id, const char* browse, const UA_ViewAttributes attr, sol::this_state L) {
@@ -167,8 +167,8 @@ public:
 		UA_NodeId referenceTypeId = UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES);
 		AutoReleaseNodeId outId;
 		UA_StatusCode re = _mgr->addView(id, _id, referenceTypeId, browse_name, attr, outId);
-		UA_QualifiedName_deleteMembers(&browse_name);
-		UA_NodeId_deleteMembers(&referenceTypeId);
+		UA_QualifiedName_clear(&browse_name);
+		UA_NodeId_clear(&referenceTypeId);
 		RETURN_RESULT(UA_Node, UA_Node(_mgr, *outId, _referenceType, UA_NODECLASS_VIEW))
 	}
 	sol::variadic_results addMethod(const UA_NodeId id, const char* browse, const UA_MethodAttributes attr, sol::this_state L) {
@@ -176,22 +176,22 @@ public:
 		UA_NodeId referenceTypeId = UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES);
 		AutoReleaseNodeId outId;
 		UA_StatusCode re = _mgr->addMethod(id, _id, referenceTypeId, browse_name, attr, NULL, 0, NULL, 0, NULL, NULL, outId);
-		UA_QualifiedName_deleteMembers(&browse_name);
-		UA_NodeId_deleteMembers(&referenceTypeId);
+		UA_QualifiedName_clear(&browse_name);
+		UA_NodeId_clear(&referenceTypeId);
 		RETURN_RESULT(UA_Node, UA_Node(_mgr, *outId, _referenceType, UA_NODECLASS_METHOD))
 	}
 	sol::variadic_results addReference(const UA_ExpandedNodeId id, bool isForward, const char* uri, UA_NodeClass node_class, sol::this_state L) {
 		UA_NodeId referenceTypeId = UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES);
 		UA_String targetServerUri = UA_STRING_ALLOC(uri);
 		UA_StatusCode re = _mgr->addReference(_id, referenceTypeId, id, isForward, targetServerUri, node_class);
-		UA_NodeId_deleteMembers(&referenceTypeId);
-		UA_String_deleteMembers(&targetServerUri);
+		UA_NodeId_clear(&referenceTypeId);
+		UA_String_clear(&targetServerUri);
 		RETURN_RESULT(bool, true)
 	}
 	sol::variadic_results deleteReference(const UA_ExpandedNodeId id, bool isForward, UA_NodeClass node_class, sol::this_state L) {
 		UA_NodeId referenceTypeId = UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES);
 		UA_StatusCode re = _mgr->deleteReference(_id, referenceTypeId, id, isForward, node_class);
-		UA_NodeId_deleteMembers(&referenceTypeId);
+		UA_NodeId_clear(&referenceTypeId);
 		RETURN_RESULT(bool, true)
 	}
 	sol::as_table_t< std::vector<UA_Node> > getChildren() const {

@@ -149,6 +149,22 @@ public:
 	} \
 	return result; \
 
+#define RETURN_ERROR(ERR) \
+do {\
+	sol::variadic_results _result; \
+	_result.push_back({ L, sol::in_place_type<sol::lua_nil_t>, sol::lua_nil_t()}); \
+	_result.push_back({ L, sol::in_place_type<std::string>, std::string(ERR)}); \
+	return _result; \
+} while(0);\
+
+
+#define RETURN_OK(XT, X) \
+do {\
+	sol::variadic_results _result; \
+	_result.push_back({ L, sol::in_place_type<XT>, X}); \
+	return _result; \
+} while(0);\
+
 
 #define MAP_PROPERTY(CLASS, DT, DN) \
 	#DN, sol::property( \
