@@ -62,6 +62,7 @@ void reg_opcua_types(sol::table& module) {
 		"toUnixTime", [](const UA_DateTime& date) { return UA_DateTime_toUnixTime(date); },
 		"fromUnixTime", [](UA_Int64 unixDate) { return UA_DateTime_fromUnixTime(unixDate); },
 		"toStruct", [](const UA_DateTime& date) { return UA_DateTime_toStruct(date); },
+		"fromStruct", [](const UA_DateTimeStruct& ts) { return UA_DateTime_fromStruct(ts); },
 		"localTimeUtcOffset", sol::property([](void) { return UA_DateTime_localTimeUtcOffset(); })
 	);
 	module.new_usertype<UA_DateTimeStruct>("DateTimeStruct",

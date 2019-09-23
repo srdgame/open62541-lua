@@ -43,6 +43,9 @@ From unix time.
 * toStruct()
 Convert to DateTimeStruct
 
+* fromStruct()
+Covert DataTime from DateTimeStruct
+
 * localTimeUtcOffset()
 Offset between local time and UTC time
 
