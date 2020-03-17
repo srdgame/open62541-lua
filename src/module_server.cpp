@@ -365,12 +365,12 @@ public:
 			const UA_NodeId referenceTypeId,
 			const UA_QualifiedName browseName,
 			const UA_MethodAttributes attr,
-			UA_MethodCallback method,
+			//UA_MethodCallback method,
 			size_t inputArgumentsSize, const UA_Argument* inputArguments,
 			size_t outputArgumentsSize, const UA_Argument* outputArguments,
 			void *nodeContext,
 			UA_NodeId *outNewNodeId) {
-		return UA_Server_addMethodNode(_server, requestedNewNodeId, parentNodeId, referenceTypeId, browseName, attr, method, inputArgumentsSize, inputArguments, outputArgumentsSize, outputArguments, nodeContext, outNewNodeId);
+		return UA_Server_addMethodNode(_server, requestedNewNodeId, parentNodeId, referenceTypeId, browseName, attr, NULL, inputArgumentsSize, inputArguments, outputArgumentsSize, outputArguments, nodeContext, outNewNodeId);
 	}
 	UA_StatusCode callMethod(const UA_NodeId objectId,
 			const UA_NodeId methodId,
@@ -727,8 +727,8 @@ void reg_opcua_server(sol::table& module) {
 		"addDataSourceVariable", &ServerNodeMgr::addDataSourceVariable,
 		"addVariableType", &ServerNodeMgr::addVariableType,
 		"addReferenceType", &ServerNodeMgr::addReferenceType,
-		"addDataType", &ServerNodeMgr::addDataType
-		//"addMethod", &ServerNodeMgr::addMethod
+		"addDataType", &ServerNodeMgr::addDataType,
+		"addMethod", &ServerNodeMgr::addMethod
 	);
 
 }

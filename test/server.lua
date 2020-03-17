@@ -50,7 +50,7 @@ local vc = opcua.ValueCallback:new(function(server, sessionId, sessionContext, n
 	print('ONREAD', nodeId.ns, nodeId.index)
 	print(numericRange)
 	print(dataValue.value:asValue(), dataValue.sourceTimestamp, dataValue.serverTimestamp)
-	dataValue.value = opcua.Variant.new('ddddxxxxx')
+	--dataValue.value = opcua.Variant.new('ddddxxxxx')
 end,
 function(server, sessionId, sessionContext, nodeId, numericRange, dataValue)
 	print('ONWRITE', nodeId.ns, nodeId.index)
@@ -64,6 +64,19 @@ attr.displayName = opcua.LocalizedText.new("en_US", "My Time Ticker")
 attr.description = opcua.LocalizedText.new("en_US", "My Time Ticker Description")
 attr.value = opcua.Variant.datetime(opcua.DateTime.now())
 local mytick = newobject:addVariable(opcua.NodeId.new(idx, 101), "MyTimeTick", attr)
+
+local battr = opcua.VariableAttributes.new()
+battr.displayName = opcua.LocalizedText.new("en_US", "My Boolean Property DisplayName")
+battr.description = opcua.LocalizedText.new("en_US", "My Boolean Property Description")
+battr.value = opcua.Variant.new(false)
+battr.writeMask = opcua.WriteMask.ALL
+battr.userWriteMask = opcua.WriteMask.ALL
+battr.accessLevel = opcua.AccessLevel.RW
+
+local bnid = opcua.NodeId.new(idx, 109)
+local bprop, err = newobject:addVariable(bnid, "MyBoolProperty", battr)
+print(bprop, err)
+bprop.displayName = opcua.LocalizedText.new("en_US", "MyBoolean Property!!!")
 
 local attr = opcua.VariableAttributes.new()
 attr.displayName = opcua.LocalizedText.new("en_US", "My Property DisplayName")
@@ -80,6 +93,20 @@ for i = 110, 500 do
 	assert(myprop, err)
 	myprop.displayName = opcua.LocalizedText.new("en_US", "AAAAAAAAAAAAA"..i)
 end
+
+
+--- Method node
+
+local mattr = opcua.MethodAttributes.new()
+mattr.displayName = opcua.LocalizedText.new("en_US", "My Method DisplayName")
+mattr.description = opcua.LocalizedText.new("en_US", "My Method Description")
+mattr.writeMask = opcua.WriteMask.ALL
+mattr.userWriteMask = opcua.WriteMask.ALL
+mattr.executable = true
+mattr.userExecutable = true
+
+local mid = opcua.NodeId.new(idx, 1000)
+local mprop, err = assert(newobject:addMethod(mid, "Method A", mattr))
 
 local root = server:getRootNode()
 print("Root node is", root)

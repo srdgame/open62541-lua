@@ -1,5 +1,6 @@
 #include <iomanip>
 //#include <iostream>
+#include <uuid/uuid.h>
 
 #include "open62541.h"
 
@@ -52,6 +53,15 @@ UA_DateTime_toString(UA_DateTime t) {
     printNumber(tSt.nanoSec, &str.data[28], 3);
     return str;
 }
+
+const UA_Argument UA_Argument_default = {
+	{0, NULL},				/* name */
+	UA_NODEID_NULL,			/* dataType */
+	0,                      /* valueRank */
+	0,                      /* arrayDimensionsSize */
+	NULL,					/* arrayDimensions */
+	{{0, NULL}, {0, NULL}}, /* description */
+};
 
 void reg_opcua_types(sol::table& module) {
 	module.new_usertype<UA_DateTime>("DateTime",
@@ -288,12 +298,36 @@ void reg_opcua_types(sol::table& module) {
 		)
 	),
 
+	module.new_usertype<UA_Guid>("Guid",
+		"new", sol::initializers([](UA_Guid& guid, const char* val) { 
+			uuid_t uu;
+			if (0 == uuid_parse(val, uu)) {
+				memcpy(&guid, &uu, sizeof(uuid_t));
+			}
+		}),
+		"__tostring", [](const UA_Guid& guid) {
+			uuid_t uu;
+			memcpy(&uu, &guid, sizeof(uuid_t));
+			char temp[128];
+			memset(temp, 0, 128);
+			uuid_unparse(uu, temp);
+			return std::string(temp);
+		}
+	);
+
 	module.new_usertype<UA_NodeId>("NodeId",
 		"new", sol::factories(
 			[](int ns, int val) { return UA_NODEID_NUMERIC(ns, val); },
 			[](int ns, const char* val){ return UA_NODEID_STRING_ALLOC(ns, val); },
 			[](int ns, UA_Guid val){ UA_NODEID_GUID(ns, val); }
 		),
+		"byte_string", sol::initializers([](UA_NodeId& id, int ns, const std::string& val) {
+			id.namespaceIndex = ns;
+			id.identifierType = UA_NODEIDTYPE_BYTESTRING;
+			UA_ByteString_allocBuffer(&id.identifier.byteString, val.length());
+			memcpy(&id.identifier.byteString.data, val.c_str(), val.length());
+			//std::cout << val.length() << std::endl;
+		}),
 		"__gc", sol::destructor(UA_NodeId_clear),
 		"__eq", [](const UA_NodeId& left, const UA_NodeId& right) { return UA_NodeId_equal(&left, &right); },
 		"isNull", [](const UA_NodeId& id) { return UA_NodeId_isNull(&id); },
@@ -428,6 +462,19 @@ void reg_opcua_types(sol::table& module) {
 		"userWriteMask", &UA_MethodAttributes::userWriteMask,
 		"executable", &UA_MethodAttributes::executable,
 		"userExecutable", &UA_MethodAttributes::userExecutable
+	);
+
+	module.new_usertype<UA_Argument>("Argument",
+		"new", sol::factories([](){
+			return UA_Argument_default;
+		}),
+		"__gc", sol::destructor(UA_Argument_clear),
+		"name", &UA_Argument::name,
+		"dataType", &UA_Argument::dataType,
+		"valueRank", &UA_Argument::valueRank,
+		"arrayDimensionsSize", &UA_Argument::arrayDimensionsSize,
+		"arrayDimensions", &UA_Argument::arrayDimensions,
+		"description", &UA_Argument::description
 	);
 }
 

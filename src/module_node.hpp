@@ -171,11 +171,13 @@ public:
 		UA_NodeId_clear(&referenceTypeId);
 		RETURN_RESULT(UA_Node, UA_Node(_mgr, *outId, _referenceType, UA_NODECLASS_VIEW))
 	}
-	sol::variadic_results addMethod(const UA_NodeId id, const char* browse, const UA_MethodAttributes attr, sol::this_state L) {
+	sol::variadic_results addMethod(const UA_NodeId id, const char* browse, const UA_MethodAttributes attr, std::vector<UA_Argument> inputs, std::vector<UA_Argument> outputs, sol::this_state L) {
 		UA_QualifiedName browse_name = UA_QUALIFIEDNAME_ALLOC(id.namespaceIndex, browse);
 		UA_NodeId referenceTypeId = UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES);
 		AutoReleaseNodeId outId;
-		UA_StatusCode re = _mgr->addMethod(id, _id, referenceTypeId, browse_name, attr, NULL, 0, NULL, 0, NULL, NULL, outId);
+		size_t inputSize = inputs.size();
+		size_t outputSize = outputs.size();
+		UA_StatusCode re = _mgr->addMethod(id, _id, referenceTypeId, browse_name, attr, inputSize, &(*inputs.begin()), outputSize, &(*outputs.begin()), NULL, outId);
 		UA_QualifiedName_clear(&browse_name);
 		UA_NodeId_clear(&referenceTypeId);
 		RETURN_RESULT(UA_Node, UA_Node(_mgr, *outId, _referenceType, UA_NODECLASS_METHOD))

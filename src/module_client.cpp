@@ -290,7 +290,7 @@ public:
 			const UA_NodeId referenceTypeId,
 			const UA_QualifiedName browseName,
 			const UA_MethodAttributes attr,
-			UA_MethodCallback method,
+			// UA_MethodCallback method,
 			size_t inputArgumentsSize, const UA_Argument* inputArguments,
 			size_t outputArgumentsSize, const UA_Argument* outputArguments,
 			void *nodeContext,
@@ -629,6 +629,53 @@ public:
 		RETURN_RESULT(UA_UInt32, monResponse.monitoredItemId)
 	}
 
+	sol::variadic_results callMethod(const UA_NodeId& objectId, const UA_NodeId& methodId, sol::variadic_args args, sol::this_state L) {
+		size_t inputSize = args.size();
+		size_t outputSize = 0;
+		UA_Variant *inputs = new UA_Variant[inputSize];
+		UA_Variant *outputs;
+		sol::variadic_results result;
+
+		// Copy the inputs
+		for (int i = 0; i < inputSize; ++i) {
+			UA_Variant_init(inputs + i);
+			UA_Variant* v = args.get<UA_Variant*>(i);
+			UA_Variant_copy(v, inputs + i);
+		}
+
+		/// Call object method
+		UA_StatusCode re = _mgr->callMethod(objectId, methodId, inputSize, inputs, &outputSize, &outputs);
+
+		// Free input array
+		for (int i = 0; i < inputSize; ++i) {
+			UA_Variant_clear(inputs + i);
+		}
+		delete [] inputs;
+
+		// Check the returns
+		if (re == UA_STATUSCODE_GOOD) {
+			// Push the output size
+			result.push_back({ L, sol::in_place_type<size_t>, outputSize});
+			// Push all output items
+			for (int i = 0; i < outputSize; ++i) {
+				UA_Variant var;
+				UA_Variant_copy(outputs + i, &var);
+				result.push_back({ L, sol::in_place_type<UA_Variant>, var});
+			}
+		} else {
+			// Push the error message
+			result.push_back({ L, sol::in_place_type<sol::lua_nil_t>, sol::lua_nil_t()});
+			result.push_back({ L, sol::in_place_type<std::string>, std::string(UA_StatusCode_name(re))});
+		}
+
+		// Free the outputs array which is contrustured inside the library.
+		UA_Array_delete(outputs, outputSize, &UA_TYPES[UA_TYPES_VARIANT]);
+
+		return result;
+	}
+
+
+
 	UA_UInt16 run_iterate(UA_UInt32 waitInternal) {
 		/*
 		UA_UInt32 last = 0;
@@ -736,6 +783,7 @@ void reg_opcua_client(sol::table& module) {
 		),
 		"createSubscription", &UA_Client_Proxy::createSubscription,
 		"subscribeNode", &UA_Client_Proxy::subscribeNode,
+		"callMethod", &UA_Client_Proxy::callMethod,
 		"run_iterate", &UA_Client_Proxy::run_iterate
 	);
 

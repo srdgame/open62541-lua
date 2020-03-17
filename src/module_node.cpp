@@ -63,6 +63,7 @@ void reg_opcua_node(sol::table& module) {
 		"addVariable", &UA_Node::addVariable,
 		"addView", &UA_Node::addView,
 		"addReference", &UA_Node::addReference,
+		"addMethod", &UA_Node::addMethod,
 		"deleteReference", &UA_Node::deleteReference,
 		"getChildren", &UA_Node::getChildren,
 		"getChild", sol::overload(

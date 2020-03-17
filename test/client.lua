@@ -19,6 +19,15 @@ local function connection_config_init(config)
 end
 ]]--
 
+local uuid = 'b8d3f894-167a-11ea-9e68-57b5bc0aea7f'
+
+local guid = opcua.Guid.new(uuid)
+
+print(guid)
+
+local bstr = 'aaa'..string.char(0)..string.char(1)
+local id = opcua.NodeId.byte_string(1, bstr)
+
 local client = opcua.Client.new()
 
 local config = client.config
