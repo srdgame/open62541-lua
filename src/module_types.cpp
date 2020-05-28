@@ -13,7 +13,8 @@ namespace lua_opcua {
 
 std::string toString(const UA_NodeId& id) {
 	UA_String nodeIdStr = UA_STRING_NULL;
-	UA_NodeId_toString(&id, &nodeIdStr);
+	//UA_NodeId_toString(&id, &nodeIdStr);
+    UA_NodeId_print(&id, &nodeIdStr);
 	std::string str = std::string((const char*)nodeIdStr.data, nodeIdStr.length);
 	UA_String_clear(&nodeIdStr);
 	return str;
@@ -169,9 +170,13 @@ void reg_opcua_types(sol::table& module) {
 				val = *(UA_SByte*)var.data;
 			else if (var.type == &UA_TYPES[UA_TYPES_BYTE])
 				val = *(UA_Byte*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_INT16])
+				val = *(UA_Int16*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_UINT16])
+				val = *(UA_UInt16*)var.data;
 			else if (var.type == &UA_TYPES[UA_TYPES_INT32])
 				val = *(UA_Int32*)var.data;
-			else if (var.type == &UA_TYPES[UA_TYPES_INT32])
+			else if (var.type == &UA_TYPES[UA_TYPES_UINT32])
 				val = *(UA_UInt32*)var.data;
 			else if (var.type == &UA_TYPES[UA_TYPES_INT64])
 				val = *(UA_Int64*)var.data;
@@ -195,9 +200,13 @@ void reg_opcua_types(sol::table& module) {
 				val = *(UA_SByte*)var.data;
 			else if (var.type == &UA_TYPES[UA_TYPES_BYTE])
 				val = *(UA_Byte*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_INT16])
+				val = *(UA_Int16*)var.data;
+			else if (var.type == &UA_TYPES[UA_TYPES_UINT16])
+				val = *(UA_UInt16*)var.data;
 			else if (var.type == &UA_TYPES[UA_TYPES_INT32])
 				val = *(UA_Int32*)var.data;
-			else if (var.type == &UA_TYPES[UA_TYPES_INT32])
+			else if (var.type == &UA_TYPES[UA_TYPES_UINT32])
 				val = *(UA_UInt32*)var.data;
 			else if (var.type == &UA_TYPES[UA_TYPES_INT64])
 				val = *(UA_Int64*)var.data;
@@ -239,9 +248,13 @@ void reg_opcua_types(sol::table& module) {
 				RETURN_OK(UA_SByte, *(UA_SByte*)var.data);
 			} else if (var.type == &UA_TYPES[UA_TYPES_BYTE]) {
 				RETURN_OK(UA_Byte, *(UA_Byte*)var.data);
+			} else if (var.type == &UA_TYPES[UA_TYPES_INT16]) {
+				RETURN_OK(UA_Int16, *(UA_Int32*)var.data);
+			} else if (var.type == &UA_TYPES[UA_TYPES_UINT16]) {
+				RETURN_OK(UA_UInt16, *(UA_UInt32*)var.data);
 			} else if (var.type == &UA_TYPES[UA_TYPES_INT32]) {
 				RETURN_OK(UA_Int32, *(UA_Int32*)var.data);
-			} else if (var.type == &UA_TYPES[UA_TYPES_INT32]) {
+			} else if (var.type == &UA_TYPES[UA_TYPES_UINT32]) {
 				RETURN_OK(UA_UInt32, *(UA_UInt32*)var.data);
 			} else if (var.type == &UA_TYPES[UA_TYPES_INT64]) {
 				RETURN_OK(UA_Int64, *(UA_Int64*)var.data);

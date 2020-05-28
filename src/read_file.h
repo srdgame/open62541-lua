@@ -25,6 +25,7 @@ loadFile(const char *const path) {
         if(read != fileContents.length)
             UA_ByteString_clear(&fileContents);
     } else {
+		fprintf(stderr, "Failed to allocate buffer (%d): %s\n", fileContents.length, path);
         fileContents.length = 0;
     }
     fclose(fp);

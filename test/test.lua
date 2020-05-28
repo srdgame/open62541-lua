@@ -7,6 +7,7 @@ opcua.setLogger(function(...)
 	print(...)
 end)
 ]]--
+print(opcua.VERSION)
 
 local securityMode = opcua.UA_MessageSecurityMode.UA_MESSAGESECURITYMODE_SIGNANDENCRYPT
 print(securityMode)

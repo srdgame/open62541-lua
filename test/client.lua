@@ -111,8 +111,10 @@ if var then
 	print("Var user write mask", var.userWriteMask, "Var user accessl Level", var.userAccessLevel)
 	local dv = var.dataValue
 	print('Value of MyVariable', dv.value:asValue())
+	print('Host Timestamp', os.time())
 	print('Source Timestamp of MyVariable', dv.sourceTimestamp)
 	print('Server Timestamp of MyVariable', dv.serverTimestamp)
+	print('Source Timestamp of MyVariable', opcua.DateTime.toUnixTime(dv.sourceTimestamp))
 	--var.dataValue = opcua.DataValue.new(opcua.Variant.new('ddddddddddddd'))
 	local dv = opcua.DataValue.new(opcua.Variant.new('ddddddddddddd2'))
 	dv.sourceTimestamp = opcua.DateTime.fromUnixTime(os.time())

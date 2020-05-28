@@ -16,12 +16,33 @@ void reg_opcua_enums(sol::table& module) {
 	 * UA_ClientState enum
 	 * @table UA_ClientState
 	 */
+	/*
 	module.new_enum("UA_ClientState",
 		"DISCONNECTED", UA_ClientState::UA_CLIENTSTATE_DISCONNECTED, /// @field DISCONNECTED Disconnected
 		"CONNECTED", UA_ClientState::UA_CLIENTSTATE_CONNECTED, /// @field CONNECTED Connected
 		"SECURECHANNEL", UA_ClientState::UA_CLIENTSTATE_SECURECHANNEL, /// @field SECURECHANNEL Secure channel
 		"SESSION", UA_ClientState::UA_CLIENTSTATE_SESSION, /// @filed SESSION - UA_CLIENTSTATE_SESSION
 		"SESSION_RENEWED", UA_ClientState::UA_CLIENTSTATE_SESSION_RENEWED /// @field SESSION_RENEWED - UA_CLIENTSTATE_SESSION_RENEWED
+	);
+	*/
+	module.new_enum("UA_SecureChannelState",
+		"CLOSED",		UA_SecureChannelState::UA_SECURECHANNELSTATE_CLOSED,
+		"HEL_SENT",		UA_SecureChannelState::UA_SECURECHANNELSTATE_HEL_SENT,
+		"HEL_RECEIVED",	UA_SecureChannelState::UA_SECURECHANNELSTATE_HEL_RECEIVED,
+		"ACK_SENT",		UA_SecureChannelState::UA_SECURECHANNELSTATE_ACK_SENT,
+		"ACK_RECEIVED",	UA_SecureChannelState::UA_SECURECHANNELSTATE_ACK_RECEIVED,
+		"OPEN_SENT",	UA_SecureChannelState::UA_SECURECHANNELSTATE_OPN_SENT,
+		"OPEN",			UA_SecureChannelState::UA_SECURECHANNELSTATE_OPEN,
+		"CLOSING",		UA_SecureChannelState::UA_SECURECHANNELSTATE_CLOSING
+	);
+
+	module.new_enum("UA_SessionState",
+		"CLOSED",				UA_SessionState::UA_SESSIONSTATE_CLOSED,
+		"REQUESTED",			UA_SessionState::UA_SESSIONSTATE_CREATE_REQUESTED,
+		"CREATED",				UA_SessionState::UA_SESSIONSTATE_CREATED,
+		"ACTIVTE_REQUESTED",	UA_SessionState::UA_SESSIONSTATE_ACTIVATE_REQUESTED,
+		"ACTIVATED",			UA_SessionState::UA_SESSIONSTATE_ACTIVATED,
+		"CLOSING",				UA_SessionState::UA_SESSIONSTATE_CLOSING
 	);
 
 	module.new_enum("UA_MessageSecurityMode",

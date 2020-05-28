@@ -379,7 +379,10 @@ protected:
 	std::list<SubscribeCallbackItem*> _subCallbackItems;
 	*/
 
-	typedef std::function<void(UA_Client_Proxy* client, UA_ClientState state)> StateCallback;
+	typedef std::function<void(UA_Client_Proxy* client,
+			UA_SecureChannelState channelState,
+			UA_SessionState sessionState,
+			UA_StatusCode connectStatus)> StateCallback;
 	StateCallback _stateCallback;
 	//UA_ClientState _stateCallbackNew;
 	
@@ -398,12 +401,15 @@ protected:
 		}
 
 	static void
-		clientStateChangeCallback(UA_Client* client, UA_ClientState clientState) {
+		clientStateChangeCallback(UA_Client* client,
+			UA_SecureChannelState channelState,
+			UA_SessionState sessionState,
+			UA_StatusCode connectStatus) {
+
 			UA_ClientConfig* cc = UA_Client_getConfig(client);
 			UA_Client_Proxy* pClient = (UA_Client_Proxy*)cc->clientContext;
 			if (pClient->_stateCallback) {
-				//pClient->_stateCallbackNew = clientState;
-				pClient->_stateCallback(pClient, clientState);
+				pClient->_stateCallback(pClient, channelState, sessionState, connectStatus);
 			}
 		}
 
@@ -503,17 +509,39 @@ public:
 		_stateCallback = callback;
 	}
 
+	/*
 	UA_ClientState getState() {
 		return UA_Client_getState(_client);
 	}
+	*/
+
+	sol::variadic_results getState(sol::this_state L) {
+		UA_SecureChannelState chn_s;
+		UA_SessionState ss_s;
+		UA_StatusCode sc;
+		UA_Client_getState(_client, &chn_s, &ss_s, &sc);
+
+		sol::variadic_results result;
+		result.push_back({ L, sol::in_place_type<UA_SecureChannelState>, chn_s});
+		result.push_back({ L, sol::in_place_type<UA_SessionState>, ss_s});
+		result.push_back({ L, sol::in_place_type<UA_StatusCode>, sc});
+
+		return result;
+	}
+	/*
 	void reset() {
 		UA_Client_reset(_client);
 	}
+	*/
 	UA_StatusCode connect(const char* endpoint_url) {
 		return UA_Client_connect(_client, endpoint_url);
 	}
 	UA_StatusCode connect_username(const char* endpoint_url, const char* username, const char* password) {
-		return UA_Client_connect_username(_client, endpoint_url, username, password);
+		//return UA_Client_connect_username(_client, endpoint_url, username, password);
+		return UA_Client_connectUsername(_client, endpoint_url, username, password);
+	}
+	UA_StatusCode connectUsername(char* endpoint_url, const char* username, const char* password) {
+		return UA_Client_connectUsername(_client, endpoint_url, username, password);
 	}
 	UA_StatusCode disconnect() {
 		return UA_Client_disconnect(_client);
@@ -720,8 +748,10 @@ void reg_opcua_client(sol::table& module) {
 		"protocolVersion", &UA_ConnectionConfig::protocolVersion,
 		"sendBufferSize", &UA_ConnectionConfig::sendBufferSize,
 		"recvBufferSize", &UA_ConnectionConfig::recvBufferSize,
-		"maxMessageSize", &UA_ConnectionConfig::maxMessageSize,
-		"maxChunkCount", &UA_ConnectionConfig::maxChunkCount
+		"localMaxMessageSize", &UA_ConnectionConfig::localMaxMessageSize,
+		"remoteMaxMessageSize", &UA_ConnectionConfig::remoteMaxMessageSize,
+		"localMaxChunkCount", &UA_ConnectionConfig::localMaxChunkCount,
+		"remoteMaxChunkCount", &UA_ConnectionConfig::remoteMaxChunkCount
 	);
 	module.new_usertype<UA_ClientConfig_Proxy>("ClientConfig",
 		"new", sol::no_constructor, 
@@ -758,9 +788,10 @@ void reg_opcua_client(sol::table& module) {
 		"config", &UA_Client_Proxy::_config,
 		"setStateCallback", &UA_Client_Proxy::setStateCallback,
 		"getState", &UA_Client_Proxy::getState,
-		"reset", &UA_Client_Proxy::reset,
+		//"reset", &UA_Client_Proxy::reset,
 		"connect", &UA_Client_Proxy::connect,
 		"connect_username", &UA_Client_Proxy::connect_username,
+		"connectUsername", &UA_Client_Proxy::connectUsername,
 		"disconnect", &UA_Client_Proxy::disconnect,
 		"getEndpoints", &UA_Client_Proxy::getEndpoints,
 		"findServers", &UA_Client_Proxy::findServers,

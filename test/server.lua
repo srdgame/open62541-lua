@@ -106,7 +106,7 @@ mattr.executable = true
 mattr.userExecutable = true
 
 local mid = opcua.NodeId.new(idx, 1000)
-local mprop, err = assert(newobject:addMethod(mid, "Method A", mattr))
+local mprop, err = assert(newobject:addMethod(mid, "Method A", mattr, {}, {}))
 
 local root = server:getRootNode()
 print("Root node is", root)

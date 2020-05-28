@@ -9,6 +9,8 @@
  *
  */
 
+#define OPCUA_VERSION 1.2
+
 namespace lua_opcua {
 	void reg_opcua_enums(sol::table& module);
 	void reg_opcua_types(sol::table& module);
@@ -33,6 +35,11 @@ namespace lua_opcua {
 		 * @treturn string status code name string
 		 */
 		module.set_function("getStatusCodeName", UA_StatusCode_name);
+
+		/**
+		 * Module version
+		 */
+		module["VERSION"] = OPCUA_VERSION;
 
 		return module;
 	}
