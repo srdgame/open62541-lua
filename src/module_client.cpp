@@ -86,8 +86,10 @@ public:
 		UA_ReadValueId id; UA_ReadValueId_init(&id);
 		id.nodeId = nodeId;
 		id.attributeId = UA_ATTRIBUTEID_VALUE;
-		*outDataValue = UA_Client_readAttribute(_client, &id);
-		return outDataValue->status;
+//		*outDataValue = UA_Client_readAttribute(_client, &id);
+//		return outDataValue->status;
+		return __UA_Client_readAttribute(_client, &nodeId, UA_ATTRIBUTEID_VALUE,
+									 outDataValue, &UA_TYPES[UA_TYPES_VARIANT]);
 	}
 	UA_StatusCode readDataType(const UA_NodeId nodeId, UA_NodeId *outDataType) {
 		return UA_Client_readDataTypeAttribute(_client, nodeId, outDataType);
@@ -166,7 +168,10 @@ public:
 		val.nodeId = nodeId;
 		val.attributeId = UA_ATTRIBUTEID_VALUE;
 		val.value = *newDataValue;
-		return UA_Client_writeAttribute(_client, &val);
+		//return UA_Client_writeAttribute(_client, &val);
+
+		return __UA_Client_writeAttribute(_client, &nodeId, UA_ATTRIBUTEID_VALUE,
+									  newDataValue, &UA_TYPES[UA_TYPES_VARIANT]);
 	}
 	UA_StatusCode writeDataType(const UA_NodeId nodeId, const UA_NodeId *newDataType) {
 		return UA_Client_writeDataTypeAttribute(_client, nodeId, newDataType);
@@ -476,10 +481,11 @@ public:
 		_client = UA_Client_new();
 		UA_ClientConfig *cc = UA_Client_getConfig(_client);
 		cc->securityMode = securityMode;
+#ifdef UA_ENABLE_ENCRYPTION
 		UA_StatusCode rc = UA_ClientConfig_setDefaultEncryption(cc, certificate, privateKey,
 				trustList, trustListSize,
 				revocationList, revocationListSize);
-
+#endif
 		UA_ByteString_clear(&certificate);
 		UA_ByteString_clear(&privateKey);
 

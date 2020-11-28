@@ -445,6 +445,7 @@ public:
 		_server = UA_Server_new();
 		UA_ServerConfig *cc = UA_Server_getConfig(_server);
 
+#ifdef UA_ENABLE_ENCRYPTION
 		if (cert.length() > 0) {
 			UA_ByteString certificate = loadFile(cert.c_str());
 			UA_ByteString privateKey  = loadFile(pkey.c_str());
@@ -461,6 +462,7 @@ public:
 			UA_ByteString_clear(&certificate);
 			UA_ByteString_clear(&privateKey);
 		}
+#endif
 		_config = new UA_ServerConfig_Proxy(cc);
 		_mgr = new ServerNodeMgr(_server);
 	}

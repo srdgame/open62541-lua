@@ -1,6 +1,10 @@
 #include <iomanip>
 //#include <iostream>
+#ifdef _WIN32
+#include <rpc.h>
+#else
 #include <uuid/uuid.h>
+#endif
 
 #include "open62541.h"
 
@@ -312,19 +316,36 @@ void reg_opcua_types(sol::table& module) {
 	),
 
 	module.new_usertype<UA_Guid>("Guid",
-		"new", sol::initializers([](UA_Guid& guid, const char* val) { 
+		"new", sol::initializers([](UA_Guid& guid, const char* val) {
+#ifdef _WIN32
+			UUID uu;
+			if (RPC_S_OK == UuidFromStringA((unsigned char*)val, &uu)) {
+				memcpy(&guid, &uu, sizeof(UUID));
+			}
+#else
 			uuid_t uu;
 			if (0 == uuid_parse(val, uu)) {
 				memcpy(&guid, &uu, sizeof(uuid_t));
 			}
+#endif
 		}),
 		"__tostring", [](const UA_Guid& guid) {
+#ifdef _WIN32
+			UUID uu;
+			memcpy(&uu, &guid, sizeof(uuid_t));
+			RPC_CSTR rpc_str;
+			UuidToStringA(&uu, &rpc_str);
+			std::string sRet = ((char*)rpc_str);
+			RpcStringFree(&rpc_str);
+			return sRet;
+#else
 			uuid_t uu;
 			memcpy(&uu, &guid, sizeof(uuid_t));
 			char temp[128];
 			memset(temp, 0, 128);
 			uuid_unparse(uu, temp);
 			return std::string(temp);
+#endif
 		}
 	);
 

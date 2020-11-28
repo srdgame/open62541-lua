@@ -404,6 +404,10 @@ namespace sol {
 
 #include <stdexcept>
 #include <string>
+#ifdef __CODEGEARC__
+#include <cmath>            // he: fix: add missing include
+using std::llround;         // he: fix: make llround available in global namespace
+#endif // __CODEGEARC__
 
 namespace sol {
 	namespace detail {
