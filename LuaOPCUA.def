@@ -1,0 +1,8 @@
+; ACHTUNG: diese Datei darf während dem Linken *NICHT* in dem IDE-Editor
+;          geöffnet sein, sonst kommt die Fehlermeldung "invalid ItemSpec"
+;          und der Linker kann nicht linken!
+
+LIBRARY LuaOPCUA
+EXPORTS
+
+luaopen_luaopcua = _luaopen_opcua
