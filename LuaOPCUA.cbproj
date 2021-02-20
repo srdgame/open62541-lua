@@ -44,15 +44,9 @@
         <Cfg_2>true</Cfg_2>
         <Base>true</Base>
     </PropertyGroup>
-    <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Cfg_2)'=='true') or '$(Cfg_2_Win64)'!=''">
-        <Cfg_2_Win64>true</Cfg_2_Win64>
-        <CfgParent>Cfg_2</CfgParent>
-        <Cfg_2>true</Cfg_2>
-        <Base>true</Base>
-    </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
         <DCC_CBuilderOutput>JPHNE</DCC_CBuilderOutput>
-        <IntermediateOutputDir>.\$(Platform)\$(Config)</IntermediateOutputDir>
+        <IntermediateOutputDir>..\..\..\build\$(MSBuildProjectName)\$(Platform)\$(Config)</IntermediateOutputDir>
         <FinalOutputDir>.\$(Platform)\$(Config)</FinalOutputDir>
         <BCC_wpar>false</BCC_wpar>
         <BCC_OptimizeForSpeed>true</BCC_OptimizeForSpeed>
@@ -64,9 +58,9 @@
         <SanitizedProjectName>LuaOPCUA</SanitizedProjectName>
         <ILINK_GenerateImportLibrary>true</ILINK_GenerateImportLibrary>
         <_TCHARMapping>char</_TCHARMapping>
-        <IncludePath>..\62180b719d\;lua\;src\;sol\;$(IncludePath)</IncludePath>
-        <ILINK_LibraryPath>..\62180b719d\;lua\;src\;sol\;$(ILINK_LibraryPath)</ILINK_LibraryPath>
-        <Defines>_no_UA_ENABLE_ENCRYPTION;$(Defines)</Defines>
+        <IncludePath>..\..\Common\lua\;..\open62541\pack\1.1\deps\;..\open62541\pack\1.1\;src\;sol\;..\openssl\openssl-1.1\x86\include;$(IncludePath)</IncludePath>
+        <ILINK_LibraryPath>..\..\Common\lua\;..\open62541\pack\1.1\deps\;..\open62541\pack\1.1\;..\62180b719d\;lua\;src\;sol\;$(ILINK_LibraryPath)</ILINK_LibraryPath>
+        <Defines>UA_ENABLE_ENCRYPTION_OPENSSL;UA_ENABLE_ENCRYPTION;$(Defines)</Defines>
         <VerInfo_Locale>1031</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
     </PropertyGroup>
@@ -75,14 +69,13 @@
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
         <BT_BuildType>Debug</BT_BuildType>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
-        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <BCC_PCHName_Clang>LuaOPCUAPCH1.h</BCC_PCHName_Clang>
         <ILINK_LibraryPath>D:\Projekte\Playground\NetworkProtocols\OPC\open62541\V1.1.3\LuaOPCUA\lua\;$(ILINK_LibraryPath)</ILINK_LibraryPath>
+        <FinalOutputDir>..\..\..\bin\$(Config)</FinalOutputDir>
+        <Manifest_File>(None)</Manifest_File>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
         <PackageImports>adortl;appanalytics;bcbie;bcbsmp;bindcomp;bindcompdbx;bindcompfmx;bindcompvcl;bindcompvclsmp;bindengine;CloudService;CustomIPTransport;cxExportRS27;cxGridRS27;cxLibraryRS27;cxPivotGridChartRS27;cxPivotGridOLAPRS27;cxPivotGridRS27;cxTreeListRS27;cxVerticalGridRS27;DataSnapClient;DataSnapCommon;DataSnapConnectors;DatasnapConnectorsFreePascal;DataSnapFireDAC;DataSnapIndy10ServerTransport;DataSnapNativeClient;DataSnapProviderClient;DataSnapServer;DataSnapServerMidas;dbexpress;dbrtl;dbxcds;DbxClientDriver;DbxCommonDriver;DBXDb2Driver;DBXFirebirdDriver;DBXInformixDriver;DBXInterBaseDriver;DBXMSSQLDriver;DBXMySQLDriver;DBXOdbcDriver;DBXOracleDriver;DBXSqliteDriver;DBXSybaseASADriver;DBXSybaseASEDriver;dsnap;dsnapcon;dsnapxml;dxADOServerModeRS27;dxCloudServiceLibraryRS27;dxComnRS27;dxCoreRS27;dxDBXServerModeRS27;dxFireDACServerModeRS27;dxGDIPlusRS27;dxHttpIndyRequestRS27;dxmdsRS27;dxPSCoreRS27;dxPScxCommonRS27;dxPScxExtCommonRS27;dxPScxGridLnkRS27;dxPScxPCProdRS27;dxPScxPivotGridLnkRS27;dxPScxTLLnkRS27;dxPScxVGridLnkRS27;dxPSDBTeeChartRS27;dxPSdxLCLnkRS27;dxPSdxSpreadSheetLnkRS27;dxPSLnksRS27;dxPSTeeChartRS27;dxServerModeRS27;dxSkinsCoreRS27;dxSpreadSheetConditionalFormattingDialogsRS27;dxSpreadSheetCoreConditionalFormattingDialogsRS27;dxSpreadSheetCoreRS27;dxSpreadSheetReportDesignerRS27;dxSpreadSheetRS27;emsclient;emsclientfiredac;emsedge;emshosting;emsserverresource;FireDAC;FireDACADSDriver;FireDACASADriver;FireDACCommon;FireDACCommonDriver;FireDACCommonODBC;FireDACDb2Driver;FireDACDBXDriver;FireDACDSDriver;FireDACIBDriver;FireDACInfxDriver;FireDACMongoDBDriver;FireDACMSAccDriver;FireDACMSSQLDriver;FireDACMySQLDriver;FireDACODBCDriver;FireDACOracleDriver;FireDACPgDriver;FireDACSqliteDriver;FireDACTDataDriver;fmx;fmxase;fmxdae;fmxFireDAC;fmxinfopower;fmxobj;FMXTee;FmxTeeUI;ibmonitor;ibxbindings;ibxpress;IndyCore;IndyIPClient;IndyIPCommon;IndyIPServer;IndyProtocols;IndySystem;inet;inetdb;inetdbxpress;RESTBackendComponents;RESTComponents;rtl;soapmidas;soaprtl;soapserver;Tee;TeeDB;TeeUI;tethering;vcl;vclactnband;vcldb;vcldsnap;vcledge;vclFireDAC;vclib;vclie;vclimg;VCLRESTComponents;VclSmp;VCLTMSFNCCorePkgDXE13;vcltouch;vclwinx;vclx;xmlrtl;$(PackageImports)</PackageImports>
-        <BCC_PCHName_Clang>LuaOPCUAPCH1.h</BCC_PCHName_Clang>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
         <BCC_OptimizeForSpeed>false</BCC_OptimizeForSpeed>
@@ -111,8 +104,9 @@
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <Manifest_File>(None)</Manifest_File>
-        <Debugger_HostApplication>D:\Projekte\Kundenprojekte\Triumph\src\mqtt\LuaMqttClient\Win32\Debug\lua5.1.exe</Debugger_HostApplication>
-        <Debugger_RunParams>&quot;D:\Projekte\Playground\NetworkProtocols\OPC\open62541\V1.1.3\LuaOPCUA\Win32\Debug\test_luaopcua.lua&quot;</Debugger_RunParams>
+        <Debugger_HostApplication>D:\Projekte\Kundenprojekte\Triumph\src\ww_hh - Triumph\bin\debug\lua5.1.exe</Debugger_HostApplication>
+        <Debugger_RunParams>luaopcua_test_simple.lua</Debugger_RunParams>
+        <Debugger_CWD>D:\Projekte\Kundenprojekte\Triumph\src\ww_hh - Triumph\bin\debug</Debugger_CWD>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <Defines>NDEBUG;$(Defines)</Defines>
@@ -120,17 +114,10 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
         <BCC_UseClassicCompiler>false</BCC_UseClassicCompiler>
-        <BCC_PCHName_Clang>LuaOPCUAPCH1.h</BCC_PCHName_Clang>
-    </PropertyGroup>
-    <PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
-        <BCC_PCHName_Clang>LuaOPCUAPCH1.h</BCC_PCHName_Clang>
     </PropertyGroup>
     <ItemGroup>
-        <CppCompile Include="..\62180b719d\open62541.c">
-            <BuildOrder>15</BuildOrder>
-        </CppCompile>
-        <None Include="..\62180b719d\open62541.h">
-            <BuildOrder>16</BuildOrder>
+        <None Include="..\..\Common\lua\lua.hpp">
+            <BuildOrder>20</BuildOrder>
         </None>
         <CppCompile Include="DllMain.cpp">
             <BuildOrder>1</BuildOrder>
@@ -142,9 +129,6 @@
             <BuildOrder>0</BuildOrder>
             <PCH>true</PCH>
         </PCHCompile>
-        <None Include="lua\lua.hpp">
-            <BuildOrder>14</BuildOrder>
-        </None>
         <LibFiles Include="lua\lua5.1.lib" Condition="'$(Platform)'=='Win32'">
             <BuildOrder>17</BuildOrder>
             <IgnorePath>true</IgnorePath>
@@ -189,6 +173,15 @@
         <None Include="src\read_file.h">
             <BuildOrder>13</BuildOrder>
         </None>
+        <None Include="..\open62541\pack\1.1\deps\open62541_queue.h">
+            <BuildOrder>20</BuildOrder>
+        </None>
+        <CppCompile Include="..\open62541\pack\1.1\open62541.c">
+            <BuildOrder>18</BuildOrder>
+        </CppCompile>
+        <None Include="..\open62541\pack\1.1\open62541.h">
+            <BuildOrder>19</BuildOrder>
+        </None>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -225,13 +218,14 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile Condition="'$(DynamicRTL)'=='true'" LocalName="$(BDS)\Redist\osx64\libcgcrtl.dylib" Class="DependencyModule">
-                    <Platform Name="OSX64">
+                <DeployFile Condition="'$(DynamicRTL)'=='true' And '$(Multithreaded)'=='true'" LocalName="$(BDS)\bin\cc32c270mt.dll" Class="DependencyModule">
+                    <Platform Name="Win32">
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile Condition="'$(DynamicRTL)'=='true' And '$(Multithreaded)'!='true'" LocalName="$(BDS)\bin\cc32c270.dll" Class="DependencyModule">
+                <DeployFile LocalName=".\Win32\Debug\LuaOPCUA.tds" Configuration="Debug" Class="DebugSymbols">
                     <Platform Name="Win32">
+                        <RemoteName>LuaOPCUA.tds</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
@@ -296,14 +290,13 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile Condition="'$(DynamicRTL)'=='true' And '$(Multithreaded)'=='true'" LocalName="$(BDS)\bin\cc32c270mt.dll" Class="DependencyModule">
-                    <Platform Name="Win32">
+                <DeployFile Condition="'$(DynamicRTL)'=='true'" LocalName="$(BDS)\Redist\osx64\libcgcrtl.dylib" Class="DependencyModule">
+                    <Platform Name="OSX64">
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName=".\Win32\Debug\LuaOPCUA.tds" Configuration="Debug" Class="DebugSymbols">
+                <DeployFile Condition="'$(DynamicRTL)'=='true' And '$(Multithreaded)'!='true'" LocalName="$(BDS)\bin\cc32c270.dll" Class="DependencyModule">
                     <Platform Name="Win32">
-                        <RemoteName>LuaOPCUA.tds</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

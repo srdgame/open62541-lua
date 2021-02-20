@@ -91,6 +91,68 @@ public:
 		return __UA_Client_readAttribute(_client, &nodeId, UA_ATTRIBUTEID_VALUE,
 									 outDataValue, &UA_TYPES[UA_TYPES_VARIANT]);
 	}
+	UA_StatusCode readExtensionObjectValue(const UA_NodeId nodeId, UA_Variant *outValue) {
+		// Similar to UA_Client_readValueAttribute, but returns the "raw" (undecoded)
+		// data of an extension object as binary string.
+		// This then allows LUA to decode the blob (e.g. using luastruct).
+		// See:
+		// - https://github.com/open62541/open62541/issues/3108
+		// - https://github.com/open62541/open62541/issues/3787
+		// - https://github.com/open62541/open62541/tree/master/examples/custom_datatype
+		UA_ReadValueId item;
+		UA_ReadValueId_init(&item);
+		item.nodeId = nodeId;
+		item.attributeId = UA_ATTRIBUTEID_VALUE;
+
+		UA_ReadRequest request;
+		UA_ReadRequest_init(&request);
+		request.nodesToRead = &item;
+		request.nodesToReadSize = 1;
+		UA_ReadResponse response = UA_Client_Service_read(_client, request);
+		UA_StatusCode retval = response.responseHeader.serviceResult;
+		if(retval == UA_STATUSCODE_GOOD) {
+			if(response.resultsSize == 1)
+				retval = response.results[0].status;
+			else
+				retval = UA_STATUSCODE_BADUNEXPECTEDERROR;
+		}
+		if(retval != UA_STATUSCODE_GOOD) {
+			UA_ReadResponse_clear(&response);
+			return retval;
+		}
+
+		/* Set the StatusCode */
+		UA_DataValue *res = response.results;
+		if(res->hasStatus)
+			retval = res->status;
+
+		/* Return early of no value is given */
+		if(!res->hasValue) {
+			retval = UA_STATUSCODE_BADUNEXPECTEDERROR;
+			UA_ReadResponse_clear(&response);
+			return retval;
+		}
+
+		/* Copy value into out */
+		if (res->value.type->typeKind == UA_DATATYPEKIND_EXTENSIONOBJECT) {
+			UA_ExtensionObject* eo = (UA_ExtensionObject*)(res->value.data);
+			//UA_ExtensionObjectEncoding encoding = eo->encoding;
+			//UA_NodeId nodeId = eo->content.encoded.typeId;
+			int length = eo->content.encoded.body.length;
+			UA_Byte* data = eo->content.encoded.body.data;
+			UA_Variant_setScalarCopy(outValue, &eo->content.encoded.body,  &UA_TYPES[UA_TYPES_BYTESTRING]);
+			UA_Variant_init(&res->value);
+		}
+		else {
+			UA_Variant_init(&res->value);
+			retval = UA_STATUSCODE_BADTYPEMISMATCH;
+			UA_ReadResponse_clear(&response);
+			return retval;
+		}
+
+		UA_ReadResponse_clear(&response);
+		return retval;
+	}
 	UA_StatusCode readDataType(const UA_NodeId nodeId, UA_NodeId *outDataType) {
 		return UA_Client_readDataTypeAttribute(_client, nodeId, outDataType);
 	}
@@ -172,6 +234,41 @@ public:
 
 		return __UA_Client_writeAttribute(_client, &nodeId, UA_ATTRIBUTEID_VALUE,
 									  newDataValue, &UA_TYPES[UA_TYPES_VARIANT]);
+	}
+	UA_StatusCode writeExtensionObjectValue(const UA_NodeId nodeId, const UA_NodeId& dataTypeNodeId, const UA_Variant *newValue)
+	{
+		// Check that we actually have a (byte)string
+		if (!UA_Variant_isScalar(newValue))
+			return UA_STATUSCODE_BADENCODINGERROR; //RETURN_ERROR("not scalar type")
+		if (newValue->type != &UA_TYPES[UA_TYPES_STRING] && newValue->type != &UA_TYPES[UA_TYPES_BYTESTRING]) {
+			return UA_STATUSCODE_BADENCODINGERROR; //RETURN_ERROR("not string type")
+		}
+
+		// Similar to UA_Client_writeValueAttribute, but returns the "raw" (undecoded)
+		// data of an extension object as binary string.
+		// This then allows LUA to decode the blob (e.g. using luastruct).
+		// See:
+		// - https://github.com/open62541/open62541/issues/3108
+		// - https://github.com/open62541/open62541/issues/3787
+		// - https://github.com/open62541/open62541/tree/master/examples/custom_datatype
+		// - https://groups.google.com/g/open62541/c/DIrQsGDQ8k4
+		UA_Variant myVariant; /* Variants can hold scalar values and arrays of any type */
+		UA_Variant_init(&myVariant);
+		// get the string data
+		UA_String str = *(UA_String*)newValue->data;
+		// build the extension object
+		UA_ExtensionObject dataValue;
+		dataValue.encoding = UA_EXTENSIONOBJECT_ENCODED_BYTESTRING;
+		dataValue.content.encoded.typeId = dataTypeNodeId;
+		dataValue.content.encoded.body.data = (UA_Byte*)str.data;
+		dataValue.content.encoded.body.length = str.length;
+
+		UA_Variant_setScalarCopy(&myVariant, &dataValue, &UA_TYPES[UA_TYPES_EXTENSIONOBJECT]);
+		if (myVariant.type == &UA_TYPES[UA_TYPES_STRING]) {
+			// enforce bytestring (if not yet)
+			myVariant.type = &UA_TYPES[UA_TYPES_BYTESTRING];
+		}
+		return UA_Client_writeValueAttribute(_client, nodeId, &myVariant);
 	}
 	UA_StatusCode writeDataType(const UA_NodeId nodeId, const UA_NodeId *newDataType) {
 		return UA_Client_writeDataTypeAttribute(_client, nodeId, newDataType);

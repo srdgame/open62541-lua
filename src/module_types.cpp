@@ -121,6 +121,15 @@ void reg_opcua_types(sol::table& module) {
 				UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_DOUBLE]);
 				return var;
 			},
+			[](const std::string& val) {    // also allows embedded nulls!
+				UA_String str;
+				str.data = (UA_Byte*)val.c_str();
+				str.length = val.length();
+				UA_Variant var;
+				UA_Variant_init(&var);
+				UA_Variant_setScalarCopy(&var, &str, &UA_TYPES[UA_TYPES_STRING]);
+				return var;
+			},
 			[](const char* val) {
 				UA_String str = UA_STRING_ALLOC(val);
 				UA_Variant var;
@@ -152,6 +161,14 @@ void reg_opcua_types(sol::table& module) {
 		"datetime", sol::initializers([](UA_Variant& var, UA_DateTime val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_DATETIME]);}),
 
 		"__gc", sol::destructor(UA_Variant_clear),
+/*		"setBinaryString", [](UA_Variant& var, const std::string& newVal) {
+			//
+			UA_String str;
+			str.data = (UA_Byte*)newVal.c_str();
+			str.length = newVal.length();
+			UA_Variant_init(&var);
+			UA_Variant_setScalarCopy(&var, &str, &UA_TYPES[UA_TYPES_STRING]);
+		},*/
 		"isEmpty", [](UA_Variant& var) { return UA_Variant_isEmpty(&var); },
 		"isScalar", [](UA_Variant& var) { return UA_Variant_isScalar(&var); },
 		"isNumeric", [](UA_Variant& var) { return UA_DataType_isNumeric(var.type); },
@@ -227,12 +244,15 @@ void reg_opcua_types(sol::table& module) {
 		"asString", [](const UA_Variant& var, sol::this_state L) {
 			if (!UA_Variant_isScalar(&var))
 				RETURN_ERROR("not scalar type")
-			if (var.type == &UA_TYPES[UA_TYPES_STRING]) {
+			if (var.type == &UA_TYPES[UA_TYPES_STRING] || var.type == &UA_TYPES[UA_TYPES_BYTESTRING]) {
 				UA_String str = *(UA_String*)var.data;
 				RETURN_OK(std::string, std::string((const char*)str.data, str.length))
 			} else {
 				RETURN_ERROR("not string type")
 			}
+		},
+		"asBytes", [](const UA_Variant& var, int32_t cnt, sol::this_state L) {
+			RETURN_OK(std::string, std::string((const char*)var.data, cnt))
 		},
 		"asDateTime", [](const UA_Variant& var, sol::this_state L) {
 			if (var.type == &UA_TYPES[UA_TYPES_DATETIME] ) {

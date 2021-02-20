@@ -142,6 +142,10 @@ public:
 	UA_StatusCode readValue(const UA_NodeId nodeId, UA_Variant *outValue) {
 		return UA_Server_readValue(_server, nodeId, outValue);
 	}
+	UA_StatusCode readExtensionObjectValue(const UA_NodeId nodeId, UA_Variant *outValue) {
+        // TODO::implement
+		return UA_Server_readValue(_server, nodeId, outValue);
+	}
 	UA_StatusCode readDataValue(const UA_NodeId nodeId, UA_DataValue *outDataValue) {
 		UA_ReadValueId id; UA_ReadValueId_init(&id);
 		id.nodeId = nodeId;
@@ -221,6 +225,10 @@ public:
 		return UA_Server_writeEventNotifier(_server, nodeId, *newEventNotifier);
 	}
 	UA_StatusCode writeValue(const UA_NodeId nodeId, const UA_Variant *newValue) {
+		return UA_Server_writeValue(_server, nodeId, *newValue);
+	}
+	UA_StatusCode writeExtensionObjectValue(const UA_NodeId nodeId, const UA_NodeId& dataTypeNodeId, const UA_Variant *newValue) {
+		// TODO:: implement ExtensionObject
 		return UA_Server_writeValue(_server, nodeId, *newValue);
 	}
 	UA_StatusCode writeDataValue(const UA_NodeId nodeId, const UA_DataValue *newDataValue) {

@@ -88,6 +88,7 @@ public:
 	UA_NodeId _id;
 	UA_NodeId _referenceType;
 	UA_NodeClass _class;
+	//UA_NodeId _dataType;      // TODO: cache datatype NodeID for ExtensionObjects
 
 	virtual ~UA_Node() {
 		UA_NodeId_clear(&_id);
@@ -298,6 +299,23 @@ public:
 	MAP_NODE_PROPERTY(UA_Boolean, Historizing)
 	MAP_NODE_PROPERTY(UA_Boolean, Executable)
 	MAP_NODE_PROPERTY(UA_Boolean, UserExecutable)
+	// he: ExtensionObject access
+	//MAP_NODE_PROPERTY(UA_Variant, ExtensionObjectValue)
+	UA_Variant getExtensionObjectValue() const {
+		UA_Variant val; UA_Variant_init(&val);
+		auto reader = _mgr->getAttributeReader();
+		UA_StatusCode re = reader->readExtensionObjectValue(_id, &val);
+		return val;
+	}
+	UA_StatusCode setExtensionObjectValue(const UA_NodeId& dataTypeNodeId, const UA_Variant& val) const {
+		auto writer = _mgr->getAttributeWriter();
+		auto re = writer->writeExtensionObjectValue(_id, dataTypeNodeId, &val);
+		if (re != UA_STATUSCODE_GOOD) {
+			std::cout << "Write Property to :" << toString(_id) << " err_code: " << UA_StatusCode_name(re) << std::endl; \
+		}
+		return re;
+	}
+
 };
 
 }

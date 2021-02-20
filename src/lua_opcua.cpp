@@ -11,6 +11,11 @@
 
 #define OPCUA_VERSION 1.2
 
+#ifdef UA_ENABLE_ENCRYPTION_OPENSSL
+#pragma link "libcrypto-1_1.lib"
+#pragma link "libssl-1_1.lib"
+#endif
+
 namespace lua_opcua {
 	void reg_opcua_enums(sol::table& module);
 	void reg_opcua_types(sol::table& module);
