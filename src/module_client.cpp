@@ -12,6 +12,40 @@
 #include "module_node.hpp"
 //#include "certificates.h"
 
+#include <logger.h>
+extern tXTRACE_Driver gXTRACE_Driver;
+
+//const char *logCategoryNames[7] = {"network", "channel", "session", "server",
+//								   "client", "userland", "securitypolicy"};
+
+void UA_Log_XTrace_log(void *context, UA_LogLevel level, UA_LogCategory category, const char *msg, va_list args)
+{
+	/* Assume that context is casted to UA_LogLevel */
+	/* TODO we may later change this to a struct with bitfields to filter on category */
+	if (context != NULL && (UA_LogLevel)(uintptr_t)context > level)
+		return;
+
+	uint32_t xlvl = _XPIMPORTANT;
+	switch(level) {
+	case UA_LOGLEVEL_TRACE:     xlvl = _XPDEBUG; break;
+	case UA_LOGLEVEL_DEBUG:     xlvl = _XPDIAG2; break;
+	case UA_LOGLEVEL_INFO:      xlvl = _XPDIAG1; break;
+	case UA_LOGLEVEL_WARNING:   xlvl = _XPWARN; break;
+	case UA_LOGLEVEL_ERROR:     xlvl = _XPERRORS; break;
+	case UA_LOGLEVEL_FATAL:     xlvl = _XPFATAL; break;
+	}
+	gXTRACE_Driver.onLogEvent(GetModuleHandle(NULL), xlvl, category, "UA_LOG", 0, msg, args);
+}
+
+void UA_Log_XTrace_clear(void *context)
+{
+}
+
+
+const UA_Logger XTraceLogger_ = {UA_Log_XTrace_log, NULL, UA_Log_XTrace_clear};
+const UA_Logger *XTraceLogger = &XTraceLogger_;
+
+
 namespace lua_opcua {
 
 #define CLINET_SERVICES_REQUEST(XT, XN) \
@@ -430,6 +464,7 @@ protected:
 	friend class UA_Client_Proxy;
 
 	UA_ClientConfig_Proxy(UA_ClientConfig *config) : _config(config) {
+		_config->logger = XTraceLogger_;
 	}
 public:
 	void setTimeout(int timeout) {

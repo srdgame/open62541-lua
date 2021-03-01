@@ -20,8 +20,56 @@
 #pragma hdrstop
 #pragma argsused
 
+#include <Windows.h>
+#include "logger.h"
+
+extern tXTRACE_Driver gXTRACE_Driver;
+
+char MyModuleFileName[MAX_PATH];        // Full path and name
+char MyModulePath[MAX_PATH];            // Path only
+char* MyModuleName;            			// Filename only
+HINSTANCE g_hInst;
+bool gDllUnloadInProgress = false;
+
+BOOL WINAPI DllMain(HINSTANCE hInst, DWORD ul_reason_being_called, LPVOID lpReserved)
+{
+	//return _libmain(ul_reason_being_called);
+	if (DLL_PROCESS_ATTACH == ul_reason_being_called) {
+		g_hInst = hInst;
+		MyModuleFileName[0] = '\0';
+		MyModulePath[0] = '\0';
+		MyModuleName = NULL;
+		DWORD dwRet = GetModuleFileName(hInst, MyModuleFileName, sizeof(MyModuleFileName));
+		if (ERROR_INSUFFICIENT_BUFFER != dwRet && dwRet > 0) {
+			CopyMemory(MyModulePath, MyModuleFileName, MAX_PATH);
+			char *end = strrchr(MyModulePath, '\\');
+			if (end) {
+				*end++ = '\0';
+				MyModuleName = end;
+			}
+		}
+		XTRACE_Init(&gXTRACE_Driver, GetModuleHandle(NULL));
+		XTRACE_Setup(NULL);
+		XTRACE_SetMask(0xFFFFFFFF);
+		XTRACE(XPDIAG2, "%s: Process attach...", MyModuleName);
+		DWORD DebugLevel = GetHEDebugLevel(MyModuleName);
+		XTRACE(XPDIAG2, "%s: Trace mask = %04Xh", MyModuleName, DebugLevel);
+		XTRACE_SetMask(DebugLevel);
+	}
+	if (ul_reason_being_called == DLL_PROCESS_DETACH) {
+		// at least shutdown all threads and prevent callbacks to fire!
+        gDllUnloadInProgress = true;
+		XTRACE_SetMask(0xFFFFFFFF);
+		XTRACE(XPDIAG2, "%s: Process detach...", MyModuleName);
+		//heDriverShutdown();
+        //heConfigShutdown();
+		XTRACE(XPDIAG2, "%s: Process detached.",MyModuleName);
+    }
+	return 1;
+}
+/*
 extern "C" int _libmain(unsigned long reason)
 {
 	return 1;
 }
-
+*/
