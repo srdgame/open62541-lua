@@ -1042,6 +1042,7 @@ public:
 		return UA_Client_disconnect(_client);
 	}
 */
+/*
 	sol::variadic_results updateIO(sol::this_state L) {
 		UA_SecureChannelState chn_s;
 		UA_SessionState ss_s;
@@ -1055,7 +1056,7 @@ public:
 
 		return result;
 	}
-
+*/
 };
 // =============================================================================
 
@@ -1141,9 +1142,10 @@ void reg_opcua_client(sol::table& module) {
 		"config", &UA_Client_CyclicIO::_config,
 		//"getState", &UA_Client_CyclicIO::getState,
         "getState", &UA_Client_CyclicIO::getState,  // returns true, if cyclic io is running
-        "getInputs", &UA_Client_CyclicIO::getInputs,  // returns <bytestring>,<last read status>
-		"start", &UA_Client_CyclicIO::start,
-		"updateIO", &UA_Client_CyclicIO::updateIO
+		"getInputs", &UA_Client_CyclicIO::getInputs,  // returns <bytestring>,<last read status>
+		"setOutputs", &UA_Client_CyclicIO::setOutputs,
+		"start", &UA_Client_CyclicIO::start
+//		"updateIO", &UA_Client_CyclicIO::updateIO
 	);
 
 	module.new_usertype<ClientNodeMgr>("ClientNodeMgr",

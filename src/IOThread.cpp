@@ -4,6 +4,7 @@
 #pragma hdrstop
 
 #include "IOThread.h"
+#include "logger.h"
 #pragma package(smart_init)
 //---------------------------------------------------------------------------
 
@@ -19,6 +20,7 @@
 //        Form1->Caption = "Updated in a thread";
 //      }
 //---------------------------------------------------------------------------
+extern bool gDllUnloadInProgress;
 
 __fastcall TOpcUA_IOThread::TOpcUA_IOThread(UA_Client* client)
 	: TThread(true), _client(client), _state(0), _oldConnectStatus(0) // always create suspended
@@ -31,7 +33,7 @@ void __fastcall TOpcUA_IOThread::Execute()
 	NameThreadForDebugging(System::String(L"OpcUA_IOThread"));
 	//---- Place thread code here ----
 	try {
-		while (!Terminated) {
+		while (!Terminated && !gDllUnloadInProgress) {
 			StateMachine();
 		}
 	}
@@ -87,6 +89,7 @@ void TOpcUA_IOThread::StateMachine()
 
 	case 10: { // "Connecting": Initialized, try to setup and start.
 		// Do a blocking connect.
+		XTRACE(XPDIAG2, "%s: Starting to connect...", _url.c_str());
 		retval = UA_Client_connect(_client, _url.c_str());
 		if(retval != UA_STATUSCODE_GOOD) {
 			ThreadSleep(10000);      // retry connecting every 10 seconds
@@ -98,6 +101,7 @@ void TOpcUA_IOThread::StateMachine()
 	break;
 
 	case 20: // Connected, reading node IDs
+		XTRACE(XPDIAG2, "%s: Connected, reading type definitions...", _url.c_str());
 		// get the write node info
 		retval = initCyclicInfo(_wr);
 		if (UA_STATUSCODE_GOOD != retval) {
@@ -363,14 +367,22 @@ UA_StatusCode TOpcUA_IOThread::initCyclicInfo(TOpcUA_IOThread::CyclicNode& cycNo
 	UA_StatusCode retval = UA_Client_readNodeIdAttribute(_client, nodeId, &cycNode.nidNodeId);
 	if (UA_STATUSCODE_GOOD == retval) {
 		// return UA_Client_readDataTypeAttribute(_client, nodeId, outDataType);
+		XTRACE(XPDIAG1, "%s: '%s': NodeID resolved, NodeID=%d", _url.c_str(), cycNode.Name.c_str(), cycNode.nidNodeId.identifier.numeric);
 		retval = UA_Client_readDataTypeAttribute(_client, cycNode.nidNodeId, &cycNode.nidDataType);
 		if (UA_STATUSCODE_GOOD == retval) {
 			retval = UA_Client_readNodeClassAttribute(_client, cycNode.nidNodeId, &cycNode.nidNodeClass);
 			if (UA_STATUSCODE_GOOD == retval) {
 				UA_Variant_init(&cycNode.varInitVal);
 				retval = readExtensionObjectValue(cycNode.nidNodeId, &cycNode.varInitVal);
+				XTRACE(XPDIAG1, "%s: '%s': NodeClass resolved, inital value read.", _url.c_str(), cycNode.Name.c_str());
+			}
+			else {
+				XTRACE(XPERRORS, "%s: Failed to read NodeClass for '%s'", _url.c_str(), cycNode.Name.c_str());
 			}
 		}
+	}
+	else {
+		XTRACE(XPERRORS, "%s: Failed to resolve NodeID for '%s'", _url.c_str(), cycNode.Name.c_str());
 	}
 	UA_NodeId_clear(&nodeId);
 
@@ -378,6 +390,9 @@ UA_StatusCode TOpcUA_IOThread::initCyclicInfo(TOpcUA_IOThread::CyclicNode& cycNo
 		nodeId = UA_NODEID_STRING_ALLOC(cycNode.Namespace, cycNode.Encoding.c_str());
 		UA_StatusCode retval = UA_Client_readNodeIdAttribute(_client, nodeId, &cycNode.nidEncoding);
 		UA_NodeId_clear(&nodeId);
+	}
+	else {
+		XTRACE(XPERRORS, "%s: Error resolving '%s': Retcode=%d, length=%d", _url.c_str(), cycNode.Name.c_str());
 	}
 
 	return retval;
@@ -394,6 +409,7 @@ void TOpcUA_IOThread::Init(
 	const char* username,
 	const char* password)
 {
+	XTRACE(XPDIAG1, "OPCUA: URL='%s' wrNode='%s' rdNode='%s'", endpoint_url, wrNode, rdNode);
 	if (_state != 0) {
 		// Error!
 		return;
