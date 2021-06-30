@@ -125,7 +125,13 @@ void TOpcUA_IOThread::StateMachine()
 		// Do the cyclic IO. Ignore any errors for now.
 		_tLastRW = GetTickCount();
 		retval = readwriteCyclic();
-        DWORD tIO = GetTickCount();
+		if (UA_STATUSCODE_GOOD != retval) {
+			// Read/write failed. Disconnect and reconnect...
+			XTRACE(XPERRORS, "%s: Error reading/writing: %08Xh (%s)", _url.c_str(), retval, UA_StatusCode_name(retval));
+			_state = 99;
+			break;
+		}
+		DWORD tIO = GetTickCount();
 
 		// Warten, bis ein Zyklus durch *UND* OPC-UA Zustandsmaschine pollen
 		DWORD tElapsed = GetTickCount() - _tLastRW;
@@ -205,9 +211,10 @@ UA_StatusCode TOpcUA_IOThread::GetInputs(UA_ByteString *newValue)
 UA_StatusCode TOpcUA_IOThread::readwriteCyclic()
 {
 	UA_ByteString tmp;
-	UA_StatusCode retval;
+	UA_StatusCode retval_wr, retval_rd;
 
 	// write:
+	retval_wr = UA_STATUSCODE_GOOD;
 	if (_varWr.length > 0) {
 		// Copy
 		EnterCriticalSection(&_cs);
@@ -217,24 +224,21 @@ UA_StatusCode TOpcUA_IOThread::readwriteCyclic()
 		// Now write:
 		if (_wr.Encoding.length() > 0) {
 			// CoDeSys RasPi hack:
-			retval = writeExtensionObjectValue(_wr.nidNodeId, _wr.nidEncoding, &tmp);
+			retval_wr = writeExtensionObjectValue(_wr.nidNodeId, _wr.nidEncoding, &tmp);
 		} else {
 			// Default: use data type
-			retval = writeExtensionObjectValue(_wr.nidNodeId, _wr.nidDataType, &tmp);
+			retval_wr = writeExtensionObjectValue(_wr.nidNodeId, _wr.nidDataType, &tmp);
 		}
 		// Clean the temporary variable
 		UA_ByteString_clear(&tmp);
-		_wrStatus = retval;
-		if (UA_STATUSCODE_GOOD != retval) {
-			return retval;
-		}
+		_wrStatus = retval_wr;
 	}
 
 	// read:
 	UA_Variant var;
 	UA_Variant_init(&var);
-	retval = TOpcUA_IOThread::readExtensionObjectValue(_rd.nidNodeId, &var);
-	if (UA_STATUSCODE_GOOD == retval) {
+	retval_rd = TOpcUA_IOThread::readExtensionObjectValue(_rd.nidNodeId, &var);
+	if (UA_STATUSCODE_GOOD == retval_rd) {
 		// check
 		if (UA_Variant_isScalar(&var) && (var.type == &UA_TYPES[UA_TYPES_STRING] || var.type == &UA_TYPES[UA_TYPES_BYTESTRING])) {
 			// copy
@@ -245,12 +249,16 @@ UA_StatusCode TOpcUA_IOThread::readwriteCyclic()
 			LeaveCriticalSection(&_cs);
 		}
 		else {
-			retval = UA_STATUSCODE_BADENCODINGERROR; //RETURN_ERROR("not string type")
+			retval_rd = UA_STATUSCODE_BADENCODINGERROR; //RETURN_ERROR("not string type")
 		}
 	}
-	_rdStatus = retval;
+	_rdStatus = retval_rd;
 	UA_Variant_clear(&var);
-	return retval;
+
+	if (UA_STATUSCODE_GOOD != retval_wr) {
+		return retval_wr;
+	}
+	return retval_rd;
 }
 
 //---------------------------------------------------------------------------
@@ -363,22 +371,33 @@ UA_StatusCode TOpcUA_IOThread::initCyclicInfo(TOpcUA_IOThread::CyclicNode& cycNo
 	UA_NodeClass_clear(&cycNode.nidNodeClass);
 	UA_Variant_clear(&cycNode.varInitVal);
 
+	// (try) to resolve the node name [string] into a node id [numeric]
 	nodeId = UA_NODEID_STRING_ALLOC(cycNode.Namespace, cycNode.Name.c_str());
 	UA_StatusCode retval = UA_Client_readNodeIdAttribute(_client, nodeId, &cycNode.nidNodeId);
 	if (UA_STATUSCODE_GOOD == retval) {
 		// return UA_Client_readDataTypeAttribute(_client, nodeId, outDataType);
-		XTRACE(XPDIAG1, "%s: '%s': NodeID resolved, NodeID=%d", _url.c_str(), cycNode.Name.c_str(), cycNode.nidNodeId.identifier.numeric);
+		XTRACE(XPDIAG1, "%s: '%s': NodeID resolved, NodeType=%d/NodeID=%d", _url.c_str(), cycNode.Name.c_str(), cycNode.nidNodeId.identifierType, cycNode.nidNodeId.identifier.numeric);
 		retval = UA_Client_readDataTypeAttribute(_client, cycNode.nidNodeId, &cycNode.nidDataType);
 		if (UA_STATUSCODE_GOOD == retval) {
+			if (cycNode.nidDataType.identifierType == UA_NODEIDTYPE_STRING) {
+				const char* pName = (const char*)cycNode.nidDataType.identifier.string.data;
+				XTRACE(XPDIAG1, "    NodeClass=%s", pName);
+			} else {
+				XTRACE(XPDIAG1, "    NodeClass=%d", cycNode.nidDataType.identifier.numeric);
+			}
 			retval = UA_Client_readNodeClassAttribute(_client, cycNode.nidNodeId, &cycNode.nidNodeClass);
 			if (UA_STATUSCODE_GOOD == retval) {
 				UA_Variant_init(&cycNode.varInitVal);
 				retval = readExtensionObjectValue(cycNode.nidNodeId, &cycNode.varInitVal);
-				XTRACE(XPDIAG1, "%s: '%s': NodeClass resolved, inital value read.", _url.c_str(), cycNode.Name.c_str());
+				int bytes = ((UA_ByteString*)cycNode.varInitVal.data)->length;
+				XTRACE(XPDIAG1, "    NodeClass resolved, inital value read, structure size=%d bytes.", bytes);
 			}
 			else {
 				XTRACE(XPERRORS, "%s: Failed to read NodeClass for '%s'", _url.c_str(), cycNode.Name.c_str());
 			}
+		}
+		else {
+			XTRACE(XPERRORS, "%s: Failed to read DataType attribute for '%s'", _url.c_str(), cycNode.Name.c_str());
 		}
 	}
 	else {
@@ -388,11 +407,23 @@ UA_StatusCode TOpcUA_IOThread::initCyclicInfo(TOpcUA_IOThread::CyclicNode& cycNo
 
 	if (UA_STATUSCODE_GOOD == retval && cycNode.Encoding.length() > 0) {
 		nodeId = UA_NODEID_STRING_ALLOC(cycNode.Namespace, cycNode.Encoding.c_str());
-		UA_StatusCode retval = UA_Client_readNodeIdAttribute(_client, nodeId, &cycNode.nidEncoding);
+		retval = UA_Client_readNodeIdAttribute(_client, nodeId, &cycNode.nidEncoding);
+		if (UA_STATUSCODE_GOOD == retval) {
+			if (cycNode.nidEncoding.identifierType == UA_NODEIDTYPE_STRING) {
+				const char* pName = (const char*)cycNode.nidEncoding.identifier.string.data;
+				XTRACE(XPDIAG1, "    Encoding=%s", pName);
+			} else {
+				XTRACE(XPDIAG1, "    Encoding=%d", cycNode.nidEncoding.identifier.numeric);
+			}
+		} else {
+			XTRACE(XPERRORS, "%s: Failed to read encoding attribute '%s' for node '%s'", _url.c_str(), cycNode.Encoding.c_str(), cycNode.Name.c_str());
+		}
 		UA_NodeId_clear(&nodeId);
 	}
-	else {
-		XTRACE(XPERRORS, "%s: Error resolving '%s': Retcode=%d, length=%d", _url.c_str(), cycNode.Name.c_str());
+	if (UA_STATUSCODE_GOOD == retval) {
+		XTRACE(XPDIAG1, "    Success, fully resolved '%s'", cycNode.Name.c_str());
+	} else {
+		XTRACE(XPERRORS, "%s: Error resolving '%s': Retcode=%d (%08Xh), Msg=%s", _url.c_str(), cycNode.Name.c_str(), retval, retval, UA_StatusCode_name(retval));
 	}
 
 	return retval;
