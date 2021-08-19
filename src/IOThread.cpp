@@ -389,8 +389,13 @@ UA_StatusCode TOpcUA_IOThread::initCyclicInfo(TOpcUA_IOThread::CyclicNode& cycNo
 			if (UA_STATUSCODE_GOOD == retval) {
 				UA_Variant_init(&cycNode.varInitVal);
 				retval = readExtensionObjectValue(cycNode.nidNodeId, &cycNode.varInitVal);
-				int bytes = ((UA_ByteString*)cycNode.varInitVal.data)->length;
-				XTRACE(XPDIAG1, "    NodeClass resolved, inital value read, structure size=%d bytes.", bytes);
+				if (UA_STATUSCODE_GOOD == retval) {
+					int bytes = ((UA_ByteString*)cycNode.varInitVal.data)->length;
+					XTRACE(XPDIAG1, "    NodeClass resolved, inital value read, structure size=%d bytes.", bytes);
+				}
+				else {
+					XTRACE(XPERRORS, "%s: Failed to read ExtensionObjectValue for '%s'", _url.c_str(), cycNode.Name.c_str());
+				}
 			}
 			else {
 				XTRACE(XPERRORS, "%s: Failed to read NodeClass for '%s'", _url.c_str(), cycNode.Name.c_str());
