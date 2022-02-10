@@ -28,6 +28,19 @@ public:
 	bool IsCyclicIoRunning();
 	UA_StatusCode SetOutputs(const UA_ByteString *newValue);
 	UA_StatusCode GetInputs(UA_ByteString *newValue);
+	class Stats {
+	public:
+		Stats() : cntCyclesTotal(0), cntCyclesCurrent(0), cntReconnects(0), msCycle(0)  {}
+		TDateTime   tStarted;
+		TDateTime   tLastConnected;
+		uint32_t   	cntCyclesTotal;
+		uint32_t	cntCyclesCurrent;
+		uint32_t	cntReconnects;
+		uint32_t    msCycle;
+	};
+	void GetStats(Stats& stats) {
+		stats = _stats;
+	}
 
 private:
 	class CyclicNode {
@@ -68,6 +81,9 @@ private:
 	CyclicNode          _wr, _rd;
 	UA_ByteString       _varWr, _varRd;
 	UA_StatusCode       _wrStatus, _rdStatus, _oldConnectStatus;
+	Stats               _stats;
+	DWORD               _statsTicker;
+    uint32_t            _statsLastCycles;
 	void StateMachine();
 	void ThreadSleep(DWORD ms);
 	UA_StatusCode readExtensionObjectValue(const UA_NodeId nodeId, UA_Variant *outValue);

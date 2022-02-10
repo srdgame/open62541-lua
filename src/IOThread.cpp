@@ -31,6 +31,7 @@ __fastcall TOpcUA_IOThread::TOpcUA_IOThread(UA_Client* client)
 void __fastcall TOpcUA_IOThread::Execute()
 {
 	NameThreadForDebugging(System::String(L"OpcUA_IOThread"));
+	_stats.tStarted = Now();
 	//---- Place thread code here ----
 	try {
 		while (!Terminated && !gDllUnloadInProgress) {
@@ -92,6 +93,7 @@ void TOpcUA_IOThread::StateMachine()
 		XTRACE(XPDIAG2, "%s: Starting to connect...", _url.c_str());
 		retval = UA_Client_connect(_client, _url.c_str());
 		if(retval != UA_STATUSCODE_GOOD) {
+			XTRACE(XPERRORS, "%s: Connect failed. Retcode=%d (%08Xh), Msg=%s", _url.c_str(), retval, retval, UA_StatusCode_name(retval));
 			ThreadSleep(10000);      // retry connecting every 10 seconds
 		}
 		else {
@@ -102,6 +104,9 @@ void TOpcUA_IOThread::StateMachine()
 
 	case 20: // Connected, reading node IDs
 		XTRACE(XPDIAG2, "%s: Connected, reading type definitions...", _url.c_str());
+		_stats.cntReconnects++;
+		_stats.cntCyclesCurrent = 0;
+        _statsLastCycles = 0;
 		// get the write node info
 		retval = initCyclicInfo(_wr);
 		if (UA_STATUSCODE_GOOD != retval) {
@@ -119,10 +124,13 @@ void TOpcUA_IOThread::StateMachine()
 		_state = 30;
 //		// init write value
 		_varWr = *(UA_ByteString*)_wr.varInitVal.data;
+		_stats.tLastConnected = Now();
+		_statsTicker = GetTickCount();
 		break;
 
 	case 30: {
 		// Do the cyclic IO. Ignore any errors for now.
+		_stats.msCycle = GetTickCount() - _tLastRW;
 		_tLastRW = GetTickCount();
 		retval = readwriteCyclic();
 		if (UA_STATUSCODE_GOOD != retval) {
@@ -131,13 +139,36 @@ void TOpcUA_IOThread::StateMachine()
 			_state = 99;
 			break;
 		}
+		if (_stats.cntCyclesCurrent == 0) {
+			XTRACE(XPDIAG1, "%s: Cyclic IO running.", _url.c_str());
+		}
+		_stats.cntCyclesTotal++;
+		_stats.cntCyclesCurrent++;
 		DWORD tIO = GetTickCount();
+
+		if (tIO - _statsTicker > 60000) { // report connection status every minute
+			int diffCycles = _stats.cntCyclesCurrent - _statsLastCycles;
+			int diffTime   = tIO - _statsTicker;
+			if (diffTime > 0) {
+				AnsiString sTotal = FormatDateTime("hh:nn:ss", Now() - _stats.tStarted);
+				AnsiString sConn = FormatDateTime("hh:nn:ss", Now() - _stats.tLastConnected);
+				XTRACE(XPDIAG2, "%s: OPC-UA connection stats: %d cycles/s, uptime %s, connected %s", _url.c_str(),
+					diffCycles*1000/diffTime, sTotal.c_str(), sConn.c_str()
+				);
+			}
+            _statsTicker = tIO;
+		}
 
 		// Warten, bis ein Zyklus durch *UND* OPC-UA Zustandsmaschine pollen
 		DWORD tElapsed = GetTickCount() - _tLastRW;
-		while (GetTickCount() - _tLastRW < (_tCycleMs - 5))
+		DWORD tEndTime = _tLastRW + _tCycleMs - 5;
+//		while (GetTickCount() - _tLastRW < (_tCycleMs - 5))
+		do
 		{
-			UA_StatusCode connectStatus = UA_Client_run_iterate(_client, 5);
+			int tDelta = tEndTime - GetTickCount();
+			if (tDelta > 10) tDelta = 10;
+			if (tDelta < 0) tDelta = 0;
+			UA_StatusCode connectStatus = UA_Client_run_iterate(_client, tDelta);
 			if (_oldConnectStatus != connectStatus) {
 	//			printf("Connect status : %08Xh --> %08Xh\n", _oldConnectStatus, connectStatus);
 				_oldConnectStatus = connectStatus;
@@ -149,6 +180,7 @@ void TOpcUA_IOThread::StateMachine()
 				break;
 			}
 		}
+		while (GetTickCount() <= tEndTime);
 /*
 		DWORD waitInterval = 0;
 		if (tElapsed < _tCycleMs) {
@@ -192,6 +224,9 @@ bool TOpcUA_IOThread::IsCyclicIoRunning()
 UA_StatusCode TOpcUA_IOThread::SetOutputs(const UA_ByteString *newValue)
 {
 	EnterCriticalSection(&_cs);
+	if (_varWr.data != NULL) {
+		UA_ByteString_clear(&_varWr);
+    }
 	UA_ByteString_copy(newValue, &_varWr);
 	LeaveCriticalSection(&_cs);
 	return _wrStatus;               // return the last write status
@@ -232,6 +267,9 @@ UA_StatusCode TOpcUA_IOThread::readwriteCyclic()
 		// Clean the temporary variable
 		UA_ByteString_clear(&tmp);
 		_wrStatus = retval_wr;
+		if (retval_wr != UA_STATUSCODE_GOOD) {
+			XTRACE(XPERRORS, "%s: '%s': WriteExtensionObjectValue failed, err = %08Xh", _url.c_str(), _wr.Name.c_str(), retval_wr);
+		}
 	}
 
 	// read:
@@ -249,8 +287,12 @@ UA_StatusCode TOpcUA_IOThread::readwriteCyclic()
 			LeaveCriticalSection(&_cs);
 		}
 		else {
+			XTRACE(XPERRORS, "%s: '%s': ReadExtensionObjectValue failed (not scalar or serializable), err = %08Xh", _url.c_str(), _rd.Name.c_str(), retval_rd);
 			retval_rd = UA_STATUSCODE_BADENCODINGERROR; //RETURN_ERROR("not string type")
 		}
+	}
+	else {
+		XTRACE(XPERRORS, "%s: '%s': ReadExtensionObjectValue failed, err = %08Xh", _url.c_str(), _rd.Name.c_str(), retval_rd);
 	}
 	_rdStatus = retval_rd;
 	UA_Variant_clear(&var);
@@ -284,12 +326,15 @@ UA_StatusCode TOpcUA_IOThread::readExtensionObjectValue(const UA_NodeId nodeId, 
 	UA_ReadResponse response = UA_Client_Service_read(_client, request);
 	UA_StatusCode retval = response.responseHeader.serviceResult;
 	if (retval == UA_STATUSCODE_GOOD) {
-		if(response.resultsSize == 1)
+		if (response.resultsSize == 1) {
 			retval = response.results[0].status;
-		else
+		} else {
+			XTRACE(XPERRORS, "UA_Client_Service_read() result size != 1 (%d)", response.resultsSize);
 			retval = UA_STATUSCODE_BADUNEXPECTEDERROR;
+		}
 	}
-	if(retval != UA_STATUSCODE_GOOD) {
+	if (retval != UA_STATUSCODE_GOOD) {
+		XTRACE(XPERRORS, "UA_Client_Service_read() failed, err = %08Xh", retval);
 		UA_ReadResponse_clear(&response);
 		return retval;
 	}
@@ -301,6 +346,7 @@ UA_StatusCode TOpcUA_IOThread::readExtensionObjectValue(const UA_NodeId nodeId, 
 
 	/* Return early of no value is given */
 	if (!res->hasValue) {
+		XTRACE(XPERRORS, "UA_Client_Service_read() no result value available");
 		retval = UA_STATUSCODE_BADUNEXPECTEDERROR;
 		UA_ReadResponse_clear(&response);
 		return retval;
@@ -317,6 +363,7 @@ UA_StatusCode TOpcUA_IOThread::readExtensionObjectValue(const UA_NodeId nodeId, 
 		//UA_Variant_init(&res->value);
 	}
 	else {
+		XTRACE(XPERRORS, "UA_Client_Service_read() - object read is not an ExtensionObject, typeKind is %08Xh", res->value.type->typeKind);
 		UA_Variant_init(outValue);
 		retval = UA_STATUSCODE_BADTYPEMISMATCH;
 		UA_ReadResponse_clear(&response);
@@ -381,7 +428,7 @@ UA_StatusCode TOpcUA_IOThread::initCyclicInfo(TOpcUA_IOThread::CyclicNode& cycNo
 		if (UA_STATUSCODE_GOOD == retval) {
 			if (cycNode.nidDataType.identifierType == UA_NODEIDTYPE_STRING) {
 				const char* pName = (const char*)cycNode.nidDataType.identifier.string.data;
-				XTRACE(XPDIAG1, "    NodeClass=%s", pName);
+				XTRACE(XPDIAG1, "    NodeClass=%-16.*s", cycNode.nidDataType.identifier.string.length, pName);
 			} else {
 				XTRACE(XPDIAG1, "    NodeClass=%d", cycNode.nidDataType.identifier.numeric);
 			}
@@ -411,12 +458,13 @@ UA_StatusCode TOpcUA_IOThread::initCyclicInfo(TOpcUA_IOThread::CyclicNode& cycNo
 	UA_NodeId_clear(&nodeId);
 
 	if (UA_STATUSCODE_GOOD == retval && cycNode.Encoding.length() > 0) {
+		XTRACE(XPDIAG1, "    Encoding is '%s'", cycNode.Encoding.c_str());
 		nodeId = UA_NODEID_STRING_ALLOC(cycNode.Namespace, cycNode.Encoding.c_str());
 		retval = UA_Client_readNodeIdAttribute(_client, nodeId, &cycNode.nidEncoding);
 		if (UA_STATUSCODE_GOOD == retval) {
 			if (cycNode.nidEncoding.identifierType == UA_NODEIDTYPE_STRING) {
 				const char* pName = (const char*)cycNode.nidEncoding.identifier.string.data;
-				XTRACE(XPDIAG1, "    Encoding=%s", pName);
+				XTRACE(XPDIAG1, "    Encoding=%-16.*s", cycNode.nidEncoding.identifier.string.length, pName);
 			} else {
 				XTRACE(XPDIAG1, "    Encoding=%d", cycNode.nidEncoding.identifier.numeric);
 			}
@@ -424,6 +472,9 @@ UA_StatusCode TOpcUA_IOThread::initCyclicInfo(TOpcUA_IOThread::CyclicNode& cycNo
 			XTRACE(XPERRORS, "%s: Failed to read encoding attribute '%s' for node '%s'", _url.c_str(), cycNode.Encoding.c_str(), cycNode.Name.c_str());
 		}
 		UA_NodeId_clear(&nodeId);
+	}
+	else {
+		XTRACE(XPDIAG1, "    Encoding is (empty).");
 	}
 	if (UA_STATUSCODE_GOOD == retval) {
 		XTRACE(XPDIAG1, "    Success, fully resolved '%s'", cycNode.Name.c_str());
@@ -471,3 +522,21 @@ void TOpcUA_IOThread::Init(
 	Resume();
 }
 //---------------------------------------------------------------------------
+std::string formatNodeId(const UA_NodeId nodeId)
+{
+/*
+	if (nodeId.identifierType == UA_NODEIDTYPE_NUMERIC) {
+		printf("%-9u %-16u", nodeId.namespaceIndex, nodeId.identifier.numeric);
+	} else if(nodeId.identifierType == UA_NODEIDTYPE_STRING) {
+		printf("%-9u %-16.*s", nodeId.namespaceIndex,
+			nodeId.identifier.string.length, nodeId.identifier.string.data);
+	} else if(nodeId.identifierType == UA_NODEIDTYPE_BYTESTRING) {
+		printf("%-9u %-16.*s", nodeId.namespaceIndex,
+			nodeId.identifier.byteString.length, nodeId.identifier.byteString.data);
+	} else if(nodeId.identifierType == UA_NODEIDTYPE_GUID) {
+			nodeId.identifier.guid;
+	} else {
+		// ERROR!
+	}
+*/
+}

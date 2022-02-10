@@ -1006,7 +1006,6 @@ public:
 	// returns last write state
 	//
 	uint32_t setOutputs(std::string newValue, sol::this_state L) {
-
 		UA_ByteString bs;
 		UA_ByteString_init(&bs);
 		bs.data = (UA_Byte*)newValue.c_str();
