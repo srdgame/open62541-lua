@@ -192,7 +192,7 @@ void TOpcUA_IOThread::StateMachine()
 			_oldConnectStatus = connectStatus;
 		}
 		static DWORD dwCycles = 0;
-        dwCycles++;
+		dwCycles++;
 		DWORD tDelayTime = GetTickCount() - _tLastRW;
 		int iDelta = tDelayTime - _tCycleMs;
 		if (iDelta < -3 || iDelta > 3) {
@@ -213,7 +213,7 @@ void TOpcUA_IOThread::StateMachine()
 //---------------------------------------------------------------------------
 bool TOpcUA_IOThread::IsCyclicIoRunning()
 {
-    return (_state == 30);
+	return (_state == 30);
 }
 
 //---------------------------------------------------------------------------
@@ -411,12 +411,12 @@ UA_StatusCode TOpcUA_IOThread::initCyclicInfo(TOpcUA_IOThread::CyclicNode& cycNo
 	//UA_NodeClass outNodeClass;
 	UA_NodeId nodeId;
 
-    // Clear everything to prevent memory leaks for multiple calls.
+	// Clear everything to prevent memory leaks for multiple calls.
 	UA_NodeId_clear(&cycNode.nidNodeId);
 	UA_NodeId_clear(&cycNode.nidDataType);
 	UA_NodeId_clear(&cycNode.nidEncoding);
 	UA_NodeClass_clear(&cycNode.nidNodeClass);
-	UA_Variant_clear(&cycNode.varInitVal);
+//	UA_Variant_clear(&cycNode.varInitVal);
 
 	// (try) to resolve the node name [string] into a node id [numeric]
 	nodeId = UA_NODEID_STRING_ALLOC(cycNode.Namespace, cycNode.Name.c_str());
