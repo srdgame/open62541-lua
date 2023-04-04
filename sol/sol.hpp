@@ -8440,8 +8440,8 @@ namespace stack {
 	template <typename T, typename C>
 	struct checker<non_null<T>, type::userdata, C> : checker<T, lua_type_of<T>::value, C> {};
 
-	template <typename C>
-	struct checker<lua_CFunction, type::function, C> : stack_detail::basic_check<type::function, lua_iscfunction> {};
+//	template <typename C>
+//	struct checker<lua_CFunction, type::function, C> : stack_detail::basic_check<type::function, lua_iscfunction> {};
 	template <typename C>
 	struct checker<std::remove_pointer_t<lua_CFunction>, type::function, C> : checker<lua_CFunction, type::function, C> {};
 	template <typename C>

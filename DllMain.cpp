@@ -23,6 +23,8 @@
 #include <Windows.h>
 #include "logger.h"
 
+#pragma link "lua5.1.lib"
+
 extern tXTRACE_Driver gXTRACE_Driver;
 
 char MyModuleFileName[MAX_PATH];        // Full path and name
