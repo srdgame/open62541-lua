@@ -86,7 +86,7 @@ public:
 		UA_ReadValueId id; UA_ReadValueId_init(&id);
 		id.nodeId = nodeId;
 		id.attributeId = UA_ATTRIBUTEID_VALUE;
-		*outDataValue = UA_Client_readAttribute(_client, &id);
+		*outDataValue = UA_Client_read(_client, &id);
 		return outDataValue->status;
 	}
 	UA_StatusCode readDataType(const UA_NodeId nodeId, UA_NodeId *outDataType) {
@@ -166,7 +166,7 @@ public:
 		val.nodeId = nodeId;
 		val.attributeId = UA_ATTRIBUTEID_VALUE;
 		val.value = *newDataValue;
-		return UA_Client_writeAttribute(_client, &val);
+		return UA_Client_write(_client, &val);
 	}
 	UA_StatusCode writeDataType(const UA_NodeId nodeId, const UA_NodeId *newDataType) {
 		return UA_Client_writeDataTypeAttribute(_client, nodeId, newDataType);
@@ -284,6 +284,9 @@ public:
 			const UA_DataTypeAttributes attr,
 			UA_NodeId *outNewNodeId) {
 		return UA_Client_addDataTypeNode(_client, requestedNewNodeId, parentNodeId, referenceTypeId, browseName, attr, outNewNodeId);
+	}
+	const UA_DataType* findDataType(const UA_NodeId *typeId) {
+		return UA_Client_findDataType(_client, typeId);
 	}
 	UA_StatusCode addMethod(const UA_NodeId requestedNewNodeId,
 			const UA_NodeId parentNodeId,

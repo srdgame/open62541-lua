@@ -360,6 +360,9 @@ public:
 			UA_NodeId *outNewNodeId) {
 		return UA_Server_addDataTypeNode(_server, requestedNewNodeId, parentNodeId, referenceTypeId, browseName, attr, NULL, outNewNodeId);
 	}
+	const UA_DataType* findDataType(const UA_NodeId *typeId) {
+		return UA_Server_findDataType(_server, typeId);
+	}
 	UA_StatusCode addMethod(const UA_NodeId requestedNewNodeId,
 			const UA_NodeId parentNodeId,
 			const UA_NodeId referenceTypeId,

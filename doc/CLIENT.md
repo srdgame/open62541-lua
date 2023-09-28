@@ -42,9 +42,10 @@ N/A
 
 #### Methods
 
+* getState()
+* reset()
 * connect()
 * connect_username(username | string, password | string)
-* connectUsername(username | string, password | string)
 * disconnect()
 * manuallyRenewSecureChannel()
 * getEndpoints(serverUrl | string, endpointDescriptionsSize | size_t \*, endpointDescriptions | EndpointDescription)

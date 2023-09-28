@@ -9,7 +9,7 @@
  *
  */
 
-#define OPCUA_VERSION 1.2
+#define OPCUA_VERSION "1.3"
 
 namespace lua_opcua {
 	void reg_opcua_enums(sol::table& module);
