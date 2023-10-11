@@ -25,11 +25,13 @@ extern bool gDllUnloadInProgress;
 __fastcall TOpcUA_IOThread::TOpcUA_IOThread(UA_Client* client)
 	: TThread(true), _client(client), _state(0), _oldConnectStatus(0) // always create suspended
 {
+	XTRACE(XPDIAG2, "OPC-UA IOThread instantiated");
 	InitializeCriticalSection(&_cs);
 }
 //---------------------------------------------------------------------------
 void __fastcall TOpcUA_IOThread::Execute()
 {
+	XTRACE(XPDIAG2, "OPC-UA IOThread instantiated");
 	NameThreadForDebugging(System::String(L"OpcUA_IOThread"));
 	_stats.tStarted = Now();
 	//---- Place thread code here ----
