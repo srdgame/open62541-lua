@@ -41,23 +41,35 @@ struct UA_Node_Finder : public UA_Node_callback {
 };
 
 #define MAP_NODE_PROPERTY(PT, PN) \
-	PT get##PN() const { \
+	sol::variadic_results get_##PN##_lua(sol::this_state L) const { \
 		PT val; PT##_init(&val); \
 		auto reader = _mgr->getAttributeReader(); \
 		UA_StatusCode re = reader->read##PN(_id, &val); \
+		RETURN_RESULT(PT, val) \
+	} \
+	PT get_##PN() const { \
+		PT val; PT##_init(&val); \
+		auto reader = _mgr->getAttributeReader(); \
+		UA_StatusCode re = reader->read##PN(_id, &val); \
+		if (re != UA_STATUSCODE_GOOD) { \
+			UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "Read node:%s property failed. StatusCode:%s", toString(_id), UA_StatusCode_name(re)); \
+		} \
 		return val; \
 	} \
-	UA_StatusCode set##PN(const PT& val) const { \
+	void set_##PN(const PT& val) const { \
 		auto writer = _mgr->getAttributeWriter(); \
 		auto re = writer->write##PN(_id, &val); \
 		if (re != UA_STATUSCODE_GOOD) { \
-			std::cout << "Write Property to :" << toString(_id) << " err_code: " << UA_StatusCode_name(re) << std::endl; \
+			UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "Write node:%s property failed. StatusCode:%s", toString(_id), UA_StatusCode_name(re)); \
 		} \
-		return re; \
+	} \
+	sol::variadic_results set_##PN##_lua(const PT& val, sol::this_state L) const { \
+		auto writer = _mgr->getAttributeWriter(); \
+		auto re = writer->write##PN(_id, &val); \
+		RETURN_RESULT(bool, true) \
 	}
 
-#define SOL_MAP_NODE_PROPERTY(LN, DN) #LN, sol::property(&UA_Node::get##DN, &UA_Node::set##DN)
-//#define SOL_MAP_NODE_PROPERTY(LN, DN) "get"#DN, &UA_Node::get##DN, "set"#DN, &UA_Node::set##DN
+#define SOL_MAP_NODE_PROPERTY(LN, DN) #LN, sol::property(&UA_Node::get_##DN, &UA_Node::set_##DN), "get_"#DN, &UA_Node::get_##DN##_lua, "set_"#DN, &UA_Node::set_##DN##_lua
 
 
 struct AutoReleaseNodeId {

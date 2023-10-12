@@ -20,8 +20,8 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // This file was generated with a script.
-// Generated 2018-11-28 08:50:22.534324 UTC
-// This header was generated with sol v2.20.6 (revision 9b782ff)
+// Generated 2022-04-11 01:45:33.320064 UTC
+// This header was generated with sol v2.20.6 (revision cfb5d6ca)
 // https://github.com/ThePhD/sol2
 
 #ifndef SOL_SINGLE_INCLUDE_HPP
@@ -3185,6 +3185,32 @@ COMPAT53_API void luaL_requiref(lua_State *L, const char *modname,
 #endif /* KEPLER_PROJECT_COMPAT53_H_ */
 
 // end of sol/compatibility/compat-5.3.h
+
+// beginning of sol/compatibility/compat-5.4.h
+
+#ifndef NOT_KEPLER_PROJECT_COMPAT54_H_
+#define NOT_KEPLER_PROJECT_COMPAT54_H_
+
+#if defined(__cplusplus) && !defined(COMPAT53_LUA_CPP)
+extern "C" {
+#endif
+#if defined(__cplusplus) && !defined(COMPAT53_LUA_CPP)
+}
+#endif
+
+#if defined(LUA_VERSION_NUM) && LUA_VERSION_NUM == 504
+
+#if !defined(LUA_ERRGCMM)
+/* So Lua 5.4 actually removes this, which breaks sol2...
+ man, this API is quite unstable...!
+*/
+#  define LUA_ERRGCMM (LUA_ERRERR + 2)
+#endif /* LUA_ERRGCMM define */
+
+#endif // Lua 5.4 only
+
+#endif // NOT_KEPLER_PROJECT_COMPAT54_H_
+// end of sol/compatibility/compat-5.4.h
 
 
 #endif // SOL_NO_COMPAT
@@ -7147,6 +7173,7 @@ namespace sol {
 #include <vector>
 #include <forward_list>
 #include <algorithm>
+#include <limits>
 #if defined(SOL_CXX17_FEATURES) && SOL_CXX17_FEATURES
 #endif // C++17
 
@@ -10330,7 +10357,6 @@ namespace stack {
 
 // beginning of sol/stack_push.hpp
 
-#include <limits>
 #if defined(SOL_CXX17_FEATURES) && SOL_CXX17_FEATURES
 #if defined(SOL_STD_VARIANT) && SOL_STD_VARIANT
 #endif // Can use variant

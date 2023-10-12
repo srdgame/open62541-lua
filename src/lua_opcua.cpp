@@ -9,7 +9,7 @@
  *
  */
 
-#define OPCUA_VERSION 1.2
+#define OPCUA_VERSION "1.3"
 
 #ifdef UA_ENABLE_ENCRYPTION_OPENSSL
 #pragma link "libcrypto-1_1.lib"

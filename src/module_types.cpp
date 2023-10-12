@@ -1,4 +1,5 @@
 #include <iomanip>
+#include <map>
 //#include <iostream>
 #ifdef _WIN32
 #include <rpc.h>
@@ -68,6 +69,37 @@ const UA_Argument UA_Argument_default = {
 	{{0, NULL}, {0, NULL}}, /* description */
 };
 
+const static std::map<size_t, const char*> DataValueTypeMap = {
+	{UA_TYPES_BOOLEAN, "boolean"},
+	{UA_TYPES_SBYTE, "int8"},
+	{UA_TYPES_BYTE, "uint8"},
+	{UA_TYPES_INT16, "int16"},
+	{UA_TYPES_UINT16, "uint16"},
+	{UA_TYPES_INT32, "int32"},
+	{UA_TYPES_UINT32, "uint32"},
+	{UA_TYPES_INT64, "int64"},
+	{UA_TYPES_UINT64, "uint64"},
+	{UA_TYPES_FLOAT, "float"},
+	{UA_TYPES_DOUBLE, "double"},
+	{UA_TYPES_STRING, "string"},
+	{UA_TYPES_DATETIME, "datetime"},
+	{UA_TYPES_GUID, "guid"},
+	{UA_TYPES_BYTESTRING, "bytestring"},
+	{UA_TYPES_STATUSCODE, "statuscode"},
+};
+
+const char* get_node_data_value_type(const UA_NodeId& typeId) {
+    for(size_t i = 0; i < UA_TYPES_COUNT; ++i) {
+		if (UA_NodeId_equal(&typeId, &UA_TYPES[i].typeId)) {
+			auto ptr = DataValueTypeMap.find(i);
+			if (ptr != DataValueTypeMap.end()) {
+				return ptr->second;
+			}
+		}
+	}
+	return "unknown";
+}
+
 void reg_opcua_types(sol::table& module) {
 	module.new_usertype<UA_DateTime>("DateTime",
 		"new", sol::factories([](void) { return UA_DateTime_now(); }),
@@ -95,6 +127,26 @@ void reg_opcua_types(sol::table& module) {
 		"month", &UA_DateTimeStruct::month,
 		"year", &UA_DateTimeStruct::year
 	);
+
+	module.new_usertype<UA_DataType>("DataType",
+		"new", sol::factories([](void) { return UA_DataType(); }),
+		"__eq", [](const UA_DataType& left, const UA_DataType& right) {
+			return UA_NodeId_equal(&left.typeId, &right.typeId);
+		},
+		"typeId", &UA_DataType::typeId,
+		/*
+		"memSize", &UA_DataType::memSize,
+		"typeIndex", &UA_DataType::typeIndex,
+		"typeKind", &UA_DataType::typeKind,
+		"pointerFree", &UA_DataType::pointerFree,
+		"overlayable", &UA_DataType::overlayable,
+		"memberSize", &UA_DataType::memberSize,
+		*/
+		"binaryEncodingId", &UA_DataType::binaryEncodingId
+		//"members", &UA_DataType::year
+	);
+
+	module.set_function("get_node_data_value_type", get_node_data_value_type);
 
 	/*
 	module.new_usertype<UA_NumericRange>("NumericRange",
@@ -150,6 +202,7 @@ void reg_opcua_types(sol::table& module) {
 				return var;
 			}
 		),
+		"boolean", sol::initializers([](UA_Variant& var, bool val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_BOOLEAN]); }),
 		"int8", sol::initializers([](UA_Variant& var, int8_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_SBYTE]); }),
 		"uint8", sol::initializers([](UA_Variant& var, uint8_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_BYTE]);}),
 		"int16", sol::initializers([](UA_Variant& var, int16_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_INT16]); }),
@@ -158,6 +211,8 @@ void reg_opcua_types(sol::table& module) {
 		"uint32", sol::initializers([](UA_Variant& var, uint32_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_UINT32]);}),
 		"int64", sol::initializers([](UA_Variant& var, int64_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_INT64]);}),
 		"uint64", sol::initializers([](UA_Variant& var, uint64_t val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_UINT64]);}),
+		"float", sol::initializers([](UA_Variant& var, float val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_FLOAT]);}),
+		"double", sol::initializers([](UA_Variant& var, double val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_DOUBLE]);}),
 		"datetime", sol::initializers([](UA_Variant& var, UA_DateTime val) { UA_Variant_init(&var); UA_Variant_setScalarCopy(&var, &val, &UA_TYPES[UA_TYPES_DATETIME]);}),
 
 		"__gc", sol::destructor(UA_Variant_clear),

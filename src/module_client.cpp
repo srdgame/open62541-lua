@@ -123,8 +123,11 @@ public:
 		id.attributeId = UA_ATTRIBUTEID_VALUE;
 //		*outDataValue = UA_Client_readAttribute(_client, &id);
 //		return outDataValue->status;
-		return __UA_Client_readAttribute(_client, &nodeId, UA_ATTRIBUTEID_VALUE,
-									 outDataValue, &UA_TYPES[UA_TYPES_VARIANT]);
+//		return __UA_Client_readAttribute(_client, &nodeId, UA_ATTRIBUTEID_VALUE,
+//									 outDataValue, &UA_TYPES[UA_TYPES_VARIANT]);
+		*outDataValue = UA_Client_read(_client, &id);
+		return outDataValue->status;
+
 	}
 	UA_StatusCode readExtensionObjectValue(const UA_NodeId nodeId, UA_Variant *outValue) {
 		// Similar to UA_Client_readValueAttribute, but returns the "raw" (undecoded)
@@ -267,9 +270,9 @@ public:
 		val.attributeId = UA_ATTRIBUTEID_VALUE;
 		val.value = *newDataValue;
 		//return UA_Client_writeAttribute(_client, &val);
-
-		return __UA_Client_writeAttribute(_client, &nodeId, UA_ATTRIBUTEID_VALUE,
-									  newDataValue, &UA_TYPES[UA_TYPES_VARIANT]);
+		//return __UA_Client_writeAttribute(_client, &nodeId, UA_ATTRIBUTEID_VALUE,
+		//							  newDataValue, &UA_TYPES[UA_TYPES_VARIANT]);
+		return UA_Client_write(_client, &val);
 	}
 	UA_StatusCode writeExtensionObjectValue(const UA_NodeId nodeId, const UA_NodeId& dataTypeNodeId, const UA_Variant *newValue)
 	{
@@ -424,6 +427,9 @@ public:
 			const UA_DataTypeAttributes attr,
 			UA_NodeId *outNewNodeId) {
 		return UA_Client_addDataTypeNode(_client, requestedNewNodeId, parentNodeId, referenceTypeId, browseName, attr, outNewNodeId);
+	}
+	const UA_DataType* findDataType(const UA_NodeId *typeId) {
+		return UA_Client_findDataType(_client, typeId);
 	}
 	UA_StatusCode addMethod(const UA_NodeId requestedNewNodeId,
 			const UA_NodeId parentNodeId,

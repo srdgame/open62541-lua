@@ -125,7 +125,7 @@ if var then
 	print('MyVariable', var:getChild("MyVariable"))
 
 	local prop = var:getChild("MyProperty110")
-	prop.value = opcua.Variant.new("i am a test")
+	prop.value = opcua.Variant.new("i am a test"..os.date())
 else
 	print("Newobject->MyVariable does not exits")
 end
