@@ -142,6 +142,10 @@ public:
 	UA_StatusCode readValue(const UA_NodeId nodeId, UA_Variant *outValue) {
 		return UA_Server_readValue(_server, nodeId, outValue);
 	}
+	UA_StatusCode readExtensionObjectValue(const UA_NodeId nodeId, UA_Variant *outValue) {
+        // TODO::implement
+		return UA_Server_readValue(_server, nodeId, outValue);
+	}
 	UA_StatusCode readDataValue(const UA_NodeId nodeId, UA_DataValue *outDataValue) {
 		UA_ReadValueId id; UA_ReadValueId_init(&id);
 		id.nodeId = nodeId;
@@ -221,6 +225,10 @@ public:
 		return UA_Server_writeEventNotifier(_server, nodeId, *newEventNotifier);
 	}
 	UA_StatusCode writeValue(const UA_NodeId nodeId, const UA_Variant *newValue) {
+		return UA_Server_writeValue(_server, nodeId, *newValue);
+	}
+	UA_StatusCode writeExtensionObjectValue(const UA_NodeId nodeId, const UA_NodeId& dataTypeNodeId, const UA_Variant *newValue) {
+		// TODO:: implement ExtensionObject
 		return UA_Server_writeValue(_server, nodeId, *newValue);
 	}
 	UA_StatusCode writeDataValue(const UA_NodeId nodeId, const UA_DataValue *newDataValue) {
@@ -448,6 +456,7 @@ public:
 		_server = UA_Server_new();
 		UA_ServerConfig *cc = UA_Server_getConfig(_server);
 
+#ifdef UA_ENABLE_ENCRYPTION
 		if (cert.length() > 0) {
 			UA_ByteString certificate = loadFile(cert.c_str());
 			UA_ByteString privateKey  = loadFile(pkey.c_str());
@@ -464,6 +473,7 @@ public:
 			UA_ByteString_clear(&certificate);
 			UA_ByteString_clear(&privateKey);
 		}
+#endif
 		_config = new UA_ServerConfig_Proxy(cc);
 		_mgr = new ServerNodeMgr(_server);
 	}

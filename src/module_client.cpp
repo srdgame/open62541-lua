@@ -11,6 +11,41 @@
 #include "opcua_interfaces.hpp"
 #include "module_node.hpp"
 //#include "certificates.h"
+#include "IOThread.h"
+
+#include <logger.h>
+extern tXTRACE_Driver gXTRACE_Driver;
+
+//const char *logCategoryNames[7] = {"network", "channel", "session", "server",
+//								   "client", "userland", "securitypolicy"};
+
+void UA_Log_XTrace_log(void *context, UA_LogLevel level, UA_LogCategory category, const char *msg, va_list args)
+{
+	/* Assume that context is casted to UA_LogLevel */
+	/* TODO we may later change this to a struct with bitfields to filter on category */
+	if (context != NULL && (UA_LogLevel)(uintptr_t)context > level)
+		return;
+
+	uint32_t xlvl = _XPIMPORTANT;
+	switch(level) {
+	case UA_LOGLEVEL_TRACE:     xlvl = _XPDEBUG; break;
+	case UA_LOGLEVEL_DEBUG:     xlvl = _XPDIAG2; break;
+	case UA_LOGLEVEL_INFO:      xlvl = _XPDIAG1; break;
+	case UA_LOGLEVEL_WARNING:   xlvl = _XPWARN; break;
+	case UA_LOGLEVEL_ERROR:     xlvl = _XPERRORS; break;
+	case UA_LOGLEVEL_FATAL:     xlvl = _XPFATAL; break;
+	}
+	gXTRACE_Driver.onLogEvent(GetModuleHandle(NULL), xlvl, category, "UA_LOG", 0, msg, args);
+}
+
+void UA_Log_XTrace_clear(void *context)
+{
+}
+
+
+const UA_Logger XTraceLogger_ = {UA_Log_XTrace_log, NULL, UA_Log_XTrace_clear};
+const UA_Logger *XTraceLogger = &XTraceLogger_;
+
 
 namespace lua_opcua {
 
@@ -86,8 +121,76 @@ public:
 		UA_ReadValueId id; UA_ReadValueId_init(&id);
 		id.nodeId = nodeId;
 		id.attributeId = UA_ATTRIBUTEID_VALUE;
+//		*outDataValue = UA_Client_readAttribute(_client, &id);
+//		return outDataValue->status;
+//		return __UA_Client_readAttribute(_client, &nodeId, UA_ATTRIBUTEID_VALUE,
+//									 outDataValue, &UA_TYPES[UA_TYPES_VARIANT]);
 		*outDataValue = UA_Client_read(_client, &id);
 		return outDataValue->status;
+
+	}
+	UA_StatusCode readExtensionObjectValue(const UA_NodeId nodeId, UA_Variant *outValue) {
+		// Similar to UA_Client_readValueAttribute, but returns the "raw" (undecoded)
+		// data of an extension object as binary string.
+		// This then allows LUA to decode the blob (e.g. using luastruct).
+		// See:
+		// - https://github.com/open62541/open62541/issues/3108
+		// - https://github.com/open62541/open62541/issues/3787
+		// - https://github.com/open62541/open62541/tree/master/examples/custom_datatype
+		UA_ReadValueId item;
+		UA_ReadValueId_init(&item);
+		item.nodeId = nodeId;
+		item.attributeId = UA_ATTRIBUTEID_VALUE;
+
+		UA_ReadRequest request;
+		UA_ReadRequest_init(&request);
+		request.nodesToRead = &item;
+		request.nodesToReadSize = 1;
+		UA_ReadResponse response = UA_Client_Service_read(_client, request);
+		UA_StatusCode retval = response.responseHeader.serviceResult;
+		if(retval == UA_STATUSCODE_GOOD) {
+			if(response.resultsSize == 1)
+				retval = response.results[0].status;
+			else
+				retval = UA_STATUSCODE_BADUNEXPECTEDERROR;
+		}
+		if(retval != UA_STATUSCODE_GOOD) {
+			UA_ReadResponse_clear(&response);
+			return retval;
+		}
+
+		/* Set the StatusCode */
+		UA_DataValue *res = response.results;
+		if(res->hasStatus)
+			retval = res->status;
+
+		/* Return early of no value is given */
+		if(!res->hasValue) {
+			retval = UA_STATUSCODE_BADUNEXPECTEDERROR;
+			UA_ReadResponse_clear(&response);
+			return retval;
+		}
+
+		/* Copy value into out */
+		if (res->value.type->typeKind == UA_DATATYPEKIND_EXTENSIONOBJECT) {
+			UA_ExtensionObject* eo = (UA_ExtensionObject*)(res->value.data);
+			//UA_ExtensionObjectEncoding encoding = eo->encoding;
+			//UA_NodeId nodeId = eo->content.encoded.typeId;
+			int length = eo->content.encoded.body.length;
+			UA_Byte* data = eo->content.encoded.body.data;
+			UA_Variant_setScalarCopy(outValue, &eo->content.encoded.body,  &UA_TYPES[UA_TYPES_BYTESTRING]);
+			//UA_Variant_init(&res->value);
+		}
+		else {
+			//UA_Variant_init(&res->value);
+			UA_Variant_init(outValue);
+			retval = UA_STATUSCODE_BADTYPEMISMATCH;
+			UA_ReadResponse_clear(&response);
+			return retval;
+		}
+
+		UA_ReadResponse_clear(&response);
+		return retval;
 	}
 	UA_StatusCode readDataType(const UA_NodeId nodeId, UA_NodeId *outDataType) {
 		return UA_Client_readDataTypeAttribute(_client, nodeId, outDataType);
@@ -166,7 +269,47 @@ public:
 		val.nodeId = nodeId;
 		val.attributeId = UA_ATTRIBUTEID_VALUE;
 		val.value = *newDataValue;
+		//return UA_Client_writeAttribute(_client, &val);
+		//return __UA_Client_writeAttribute(_client, &nodeId, UA_ATTRIBUTEID_VALUE,
+		//							  newDataValue, &UA_TYPES[UA_TYPES_VARIANT]);
 		return UA_Client_write(_client, &val);
+	}
+	UA_StatusCode writeExtensionObjectValue(const UA_NodeId nodeId, const UA_NodeId& dataTypeNodeId, const UA_Variant *newValue)
+	{
+		// Check that we actually have a (byte)string
+		if (!UA_Variant_isScalar(newValue))
+			return UA_STATUSCODE_BADENCODINGERROR; //RETURN_ERROR("not scalar type")
+		if (newValue->type != &UA_TYPES[UA_TYPES_STRING] && newValue->type != &UA_TYPES[UA_TYPES_BYTESTRING]) {
+			return UA_STATUSCODE_BADENCODINGERROR; //RETURN_ERROR("not string type")
+		}
+
+		// Similar to UA_Client_writeValueAttribute, but returns the "raw" (undecoded)
+		// data of an extension object as binary string.
+		// This then allows LUA to decode the blob (e.g. using luastruct).
+		// See:
+		// - https://github.com/open62541/open62541/issues/3108
+		// - https://github.com/open62541/open62541/issues/3787
+		// - https://github.com/open62541/open62541/tree/master/examples/custom_datatype
+		// - https://groups.google.com/g/open62541/c/DIrQsGDQ8k4
+		UA_Variant myVariant; /* Variants can hold scalar values and arrays of any type */
+		UA_Variant_init(&myVariant);
+		// get the string data
+		UA_String str = *(UA_String*)newValue->data;
+		// build the extension object
+		UA_ExtensionObject dataValue;
+		dataValue.encoding = UA_EXTENSIONOBJECT_ENCODED_BYTESTRING;
+		dataValue.content.encoded.typeId = dataTypeNodeId;
+		dataValue.content.encoded.body.data = (UA_Byte*)str.data;
+		dataValue.content.encoded.body.length = str.length;
+
+		UA_Variant_setScalarCopy(&myVariant, &dataValue, &UA_TYPES[UA_TYPES_EXTENSIONOBJECT]);
+		if (myVariant.type == &UA_TYPES[UA_TYPES_STRING]) {
+			// enforce bytestring (if not yet)
+			myVariant.type = &UA_TYPES[UA_TYPES_BYTESTRING];
+		}
+		UA_StatusCode retval = UA_Client_writeValueAttribute(_client, nodeId, &myVariant);
+		UA_Variant_clear(&myVariant);
+		return retval;
 	}
 	UA_StatusCode writeDataType(const UA_NodeId nodeId, const UA_NodeId *newDataType) {
 		return UA_Client_writeDataTypeAttribute(_client, nodeId, newDataType);
@@ -329,8 +472,10 @@ class UA_ClientConfig_Proxy {
 	UA_ClientConfig *_config;
 protected:
 	friend class UA_Client_Proxy;
+	friend class UA_Client_CyclicIO;
 
 	UA_ClientConfig_Proxy(UA_ClientConfig *config) : _config(config) {
+		_config->logger = XTraceLogger_;
 	}
 public:
 	void setTimeout(int timeout) {
@@ -479,10 +624,11 @@ public:
 		_client = UA_Client_new();
 		UA_ClientConfig *cc = UA_Client_getConfig(_client);
 		cc->securityMode = securityMode;
+#ifdef UA_ENABLE_ENCRYPTION
 		UA_StatusCode rc = UA_ClientConfig_setDefaultEncryption(cc, certificate, privateKey,
 				trustList, trustListSize,
 				revocationList, revocationListSize);
-
+#endif
 		UA_ByteString_clear(&certificate);
 		UA_ByteString_clear(&privateKey);
 
@@ -745,6 +891,181 @@ public:
 	
 };
 
+// =============================================================================
+
+class UA_Client_CyclicIO {
+protected:
+	UA_Client_CyclicIO(UA_Client_CyclicIO& prox);
+	UA_Client* _client;
+	TOpcUA_IOThread* _ioThread;
+
+public:
+	UA_ClientConfig_Proxy *_config;
+
+	UA_Client_CyclicIO()
+	: _ioThread(NULL)
+	{
+		//_stateCallbackNew = (UA_ClientState)-1;
+		_client = UA_Client_new();
+		if (!_client) {
+			printf("Initialized UA_Client failure!!!");
+			exit(-1);
+		}
+		UA_ClientConfig* cc = UA_Client_getConfig(_client);
+		UA_ClientConfig_setDefault(cc);
+
+		_config = new UA_ClientConfig_Proxy(cc);
+		_ioThread = new TOpcUA_IOThread(_client);
+	}
+
+	UA_Client_CyclicIO(UA_MessageSecurityMode securityMode, const std::string& priCert, const std::string& priKey)
+	: _ioThread(NULL)
+    {
+		/* Load certificate and private key */
+		UA_ByteString certificate = loadFile(priCert.c_str());
+		UA_ByteString privateKey  = loadFile(priKey.c_str());
+
+		/* Load the trustList. Load revocationList is not supported now */
+		/* trust list not support for now
+		const size_t trustListSize = 0;
+		if(argc > MIN_ARGS)
+			trustListSize = (size_t)argc-MIN_ARGS;
+		UA_STACKARRAY(UA_ByteString, trustList, trustListSize);
+		for(size_t trustListCount = 0; trustListCount < trustListSize; trustListCount++)
+			trustList[trustListCount] = loadFile(argv[trustListCount+4]);
+		*/
+
+		UA_ByteString *trustList = NULL;
+		size_t trustListSize = 0;
+
+		UA_ByteString *revocationList = NULL;
+		size_t revocationListSize = 0;
+
+		_client = UA_Client_new();
+		UA_ClientConfig *cc = UA_Client_getConfig(_client);
+		cc->securityMode = securityMode;
+#ifdef UA_ENABLE_ENCRYPTION
+		UA_StatusCode rc = UA_ClientConfig_setDefaultEncryption(cc, certificate, privateKey,
+				trustList, trustListSize,
+				revocationList, revocationListSize);
+#endif
+		UA_ByteString_clear(&certificate);
+		UA_ByteString_clear(&privateKey);
+
+		/*
+		for(size_t deleteCount = 0; deleteCount < trustListSize; deleteCount++) {
+			UA_ByteString_clear(&trustList[deleteCount]);
+		}
+		*/
+
+		/* Secure client connect */
+		cc->securityMode = securityMode; /* require encryption */
+
+		_config = new UA_ClientConfig_Proxy(cc);
+		_ioThread = new TOpcUA_IOThread(_client);
+	}
+
+	~UA_Client_CyclicIO() {
+		if (_ioThread) {
+	        _ioThread->Resume();
+			_ioThread->Terminate();
+			_ioThread->WaitFor();
+		}
+        delete _ioThread;
+		UA_Client_delete(_client);
+	}
+
+	// return true if cyclic IO is running, else false
+	bool getState(sol::this_state L) {
+		return _ioThread->IsCyclicIoRunning();
+	}
+
+	sol::variadic_results getClientState(sol::this_state L) {
+		UA_SecureChannelState chn_s;
+		UA_SessionState ss_s;
+		UA_StatusCode sc;
+		UA_Client_getState(_client, &chn_s, &ss_s, &sc);
+
+		sol::variadic_results result;
+		result.push_back({ L, sol::in_place_type<UA_SecureChannelState>, chn_s});
+		result.push_back({ L, sol::in_place_type<UA_SessionState>, ss_s});
+		result.push_back({ L, sol::in_place_type<UA_StatusCode>, sc});
+
+		return result;
+	}
+
+	// returns bytestring, state or nil, state
+	//
+	sol::variadic_results getInputs(sol::this_state L) {
+
+		sol::variadic_results result;
+
+		UA_ByteString bs;
+		UA_ByteString_init(&bs);
+		UA_StatusCode retval = _ioThread->GetInputs(&bs);
+		result.push_back({ L, sol::in_place_type<std::string>, std::string((const char*)bs.data, bs.length)});
+		result.push_back({ L, sol::in_place_type<uint32_t>, retval});
+		UA_ByteString_clear(&bs);
+		return result;
+	}
+
+	// returns last write state
+	//
+	uint32_t setOutputs(std::string newValue, sol::this_state L) {
+		UA_ByteString bs;
+		UA_ByteString_init(&bs);
+		bs.data = (UA_Byte*)newValue.c_str();
+		bs.length = newValue.length();
+		UA_StatusCode retval = _ioThread->SetOutputs(&bs);
+		return retval;
+	}
+
+	void start(const char* endpoint_url,
+		int ns,         		// namespace
+		const char* wrNode,     // node name to use for writing to OPC UA server
+		const char* wrEncoding, // node name to use for encoding
+		const char* rdNode,     // node name to use for reading from OPC UA server
+		const char* rdEncoding, // node name to use for encoding
+		DWORD cycleMs,          // read/write cycle time
+		const char* username, const char* password)
+	{
+		//_stateCallback = callback;
+		_ioThread->Init(endpoint_url, ns, wrNode, wrEncoding, rdNode, rdEncoding, cycleMs, username, password);
+	}
+/*
+	UA_StatusCode connect(const char* endpoint_url) {
+		return UA_Client_connect(_client, endpoint_url);
+	}
+	UA_StatusCode connect_username(const char* endpoint_url, const char* username, const char* password) {
+		//return UA_Client_connect_username(_client, endpoint_url, username, password);
+		return UA_Client_connectUsername(_client, endpoint_url, username, password);
+	}
+	UA_StatusCode connectUsername(char* endpoint_url, const char* username, const char* password) {
+		return UA_Client_connectUsername(_client, endpoint_url, username, password);
+	}
+	UA_StatusCode disconnect() {
+		return UA_Client_disconnect(_client);
+	}
+*/
+/*
+	sol::variadic_results updateIO(sol::this_state L) {
+		UA_SecureChannelState chn_s;
+		UA_SessionState ss_s;
+		UA_StatusCode sc;
+		UA_Client_getState(_client, &chn_s, &ss_s, &sc);
+
+		sol::variadic_results result;
+		result.push_back({ L, sol::in_place_type<UA_SecureChannelState>, chn_s});
+		result.push_back({ L, sol::in_place_type<UA_SessionState>, ss_s});
+		result.push_back({ L, sol::in_place_type<UA_StatusCode>, sc});
+
+		return result;
+	}
+*/
+};
+// =============================================================================
+
+
 
 void reg_opcua_client(sol::table& module) {
 	module.new_usertype<UA_ConnectionConfig>("ConnectionConfig",
@@ -757,7 +1078,7 @@ void reg_opcua_client(sol::table& module) {
 		"remoteMaxChunkCount", &UA_ConnectionConfig::remoteMaxChunkCount
 	);
 	module.new_usertype<UA_ClientConfig_Proxy>("ClientConfig",
-		"new", sol::no_constructor, 
+		"new", sol::no_constructor,
 		"setTimeout", &UA_ClientConfig_Proxy::setTimeout,
 		"setSecureChannelLifeTime", &UA_ClientConfig_Proxy::setSecureChannelLifeTime,
 		"setProductURI", &UA_ClientConfig_Proxy::setProductURI,
@@ -819,6 +1140,17 @@ void reg_opcua_client(sol::table& module) {
 		"subscribeNode", &UA_Client_Proxy::subscribeNode,
 		"callMethod", &UA_Client_Proxy::callMethod,
 		"run_iterate", &UA_Client_Proxy::run_iterate
+	);
+
+	module.new_usertype<UA_Client_CyclicIO>("CyclicIO",
+		sol::constructors<UA_Client_CyclicIO(), UA_Client_CyclicIO(UA_MessageSecurityMode, const std::string&, const std::string&)>(),
+		"config", &UA_Client_CyclicIO::_config,
+		//"getState", &UA_Client_CyclicIO::getState,
+        "getState", &UA_Client_CyclicIO::getState,  // returns true, if cyclic io is running
+		"getInputs", &UA_Client_CyclicIO::getInputs,  // returns <bytestring>,<last read status>
+		"setOutputs", &UA_Client_CyclicIO::setOutputs,
+		"start", &UA_Client_CyclicIO::start
+//		"updateIO", &UA_Client_CyclicIO::updateIO
 	);
 
 	module.new_usertype<ClientNodeMgr>("ClientNodeMgr",

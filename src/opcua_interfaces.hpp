@@ -19,6 +19,7 @@ public:
 	virtual UA_StatusCode readContainsNoLoops(const UA_NodeId nodeId, UA_Boolean *outContainsNoLoops) = 0;
 	virtual UA_StatusCode readEventNotifier(const UA_NodeId nodeId, UA_Byte *outEventNotifier) = 0;
 	virtual UA_StatusCode readValue(const UA_NodeId nodeId, UA_Variant *outValue) = 0;
+	virtual UA_StatusCode readExtensionObjectValue(const UA_NodeId nodeId, UA_Variant *outValue) = 0;
 	virtual UA_StatusCode readDataValue(const UA_NodeId nodeId, UA_DataValue *outDataValue) = 0;
 	virtual UA_StatusCode readDataType(const UA_NodeId nodeId, UA_NodeId *outDataType) = 0;
 	virtual UA_StatusCode readValueRank(const UA_NodeId nodeId, UA_Int32 *outValueRank) = 0;
@@ -46,6 +47,7 @@ public:
 	virtual UA_StatusCode writeContainsNoLoops(const UA_NodeId nodeId, const UA_Boolean *newContainsNoLoops) = 0;
 	virtual UA_StatusCode writeEventNotifier(const UA_NodeId nodeId, const UA_Byte *newEventNotifier) = 0;
 	virtual UA_StatusCode writeValue(const UA_NodeId nodeId, const UA_Variant *newValue) = 0;
+	virtual UA_StatusCode writeExtensionObjectValue(const UA_NodeId nodeId, const UA_NodeId& dataTypeNodeId, const UA_Variant *newValue) = 0;
 	virtual UA_StatusCode writeDataValue(const UA_NodeId nodeId, const UA_DataValue *newDataValue) = 0;
 	virtual UA_StatusCode writeDataType(const UA_NodeId nodeId, const UA_NodeId *newDataType) = 0;
 	virtual UA_StatusCode writeValueRank(const UA_NodeId nodeId, const UA_Int32 *newValueRank) = 0;

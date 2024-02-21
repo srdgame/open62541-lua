@@ -91,7 +91,12 @@ void reg_opcua_node(sol::table& module) {
 		SOL_MAP_NODE_PROPERTY(minimumSamplingInterval, MinimumSamplingInterval),
 		SOL_MAP_NODE_PROPERTY(historizing, Historizing),
 		SOL_MAP_NODE_PROPERTY(executable, Executable),
-		SOL_MAP_NODE_PROPERTY(userExecutable, UserExecutable)
+		SOL_MAP_NODE_PROPERTY(userExecutable, UserExecutable),
+		// he:
+		//SOL_MAP_NODE_PROPERTY(extensionObjectValue, ExtensionObjectValue),
+		"getExtensionObjectValue", &UA_Node::getExtensionObjectValue,
+		"setExtensionObjectValue", &UA_Node::setExtensionObjectValue
+//		[](const UA_Node& node) { return (std::string)node; },
 	);
 }
 
